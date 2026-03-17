@@ -1,54 +1,33 @@
+const express = require('express');
 const http = require('http');
-const fs = require('fs');
+const WebSocket = require('ws');
 const path = require('path');
 
-// Serveur HTTP pour charger le site sur o2switch
-const server = http.createServer((req, res) => {
-    let filePath = '.' + req.url;
-    if (filePath === './' || filePath === './socket') {
-        filePath = './index.html';
-    }
+const app = express();
+const port = process.env.PORT || 3000;
 
-    const extname = String(path.extname(filePath)).toLowerCase();
-    const mimeTypes = {
-        '.html': 'text/html',
-        '.js': 'text/javascript',
-        '.css': 'text/css'
-    };
-    const contentType = mimeTypes[extname] || 'application/octet-stream';
+app.use(express.static(path.join(__dirname, 'public')));
 
-    fs.readFile(filePath, (error, content) => {
-        if (error) {
-            res.writeHead(500);
-            res.end('Erreur serveur');
-        } else {
-            res.writeHead(200, { 'Content-Type': contentType });
-            res.end(content, 'utf-8');
-        }
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', (ws) => {
+    console.log('Un client s’est connecté');
+
+    ws.on('message', (data) => {
+        // On reçoit le score du site
+        const message = data.toString();
+        console.log("Score reçu du site :", message);
+
+        // On renvoie le score à TOUS les clients connectés (dont Godot)
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(message);
+            }
+        });
     });
 });
 
-// On se connecte en forçant les options du serveur
-const socket = io("https://dookey.tmgdiff.fr", {
-    path: "/mon-app-socket/",
-    transports: ['polling']
+server.listen(port, () => {
+    console.log(`Serveur prêt sur le port ${port}`);
 });
-
-
-
-io.on('connection', (socket) => {
-    console.log('Nouveau client connecté via Socket.io');
-
-    socket.on('score', (data) => {
-        console.log('Score reçu: ', data);
-        // Renvoie à tout le monde
-        socket.broadcast.emit("score", data);
-    });
-
-    socket.on('disconnect', () => {
-        console.log("Un client s'est déconnecté");
-    });
-});
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Serveur actif sur le port ${PORT}`));
