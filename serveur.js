@@ -6,28 +6,33 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// On sert les fichiers du dossier "public"
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
+
+// On attache WebSocket au serveur HTTP
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws) => {
-    console.log('Un client s’est connecté');
+    console.log('Nouvelle connexion établie !');
 
     ws.on('message', (data) => {
-        // On reçoit le score du site
+        // Conversion du buffer en texte
         const message = data.toString();
-        console.log("Score reçu du site :", message);
+        console.log("Score reçu :", message);
 
-        // On renvoie le score à TOUS les clients connectés (dont Godot)
+        // Envoi à TOUS les clients (Site + Godot)
         wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(message);
             }
         });
     });
+
+    ws.on('error', (err) => console.error("Erreur WS:", err));
 });
 
-server.listen(port, () => {
-    console.log(`Serveur prêt sur le port ${port}`);
+server.listen(port, '0.0.0.0', () => {
+    console.log(`Serveur actif sur le port ${port}`);
 });
