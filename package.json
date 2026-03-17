@@ -1,9 +1,9 @@
 {
-  "name": "dookey-server",
+  "name": "dookey-serveur",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "serveur.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node serveur.js"
   },
   "dependencies": {
     "express": "^4.18.2",
