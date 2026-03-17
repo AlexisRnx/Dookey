@@ -12,7 +12,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 const server = http.createServer(app);
 
 // On attache WebSocket au serveur HTTP
-const wss = new WebSocket.Server({ server });
+// serveur.js - Remplace la ligne de création de 'wss' par celle-ci
+const wss = new WebSocket.Server({ 
+    server,
+    verifyClient: (info, done) => {
+        done(true); // Autorise toutes les connexions (Godot + Web)
+    }
+});
 
 wss.on('connection', (ws) => {
     console.log('Nouvelle connexion établie !');
