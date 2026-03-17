@@ -6,37 +6,34 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// On sert les fichiers du dossier "public"
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
 
-// On attache WebSocket au serveur HTTP
-// serveur.js - Remplace la ligne de création de 'wss' par celle-ci
-const wss = new WebSocket.Server({ 
-    server,
-    verifyClient: (info, done) => {
-        done(true); // Autorise toutes les connexions (Godot + Web)
-    }
-});
+// Configuration robuste pour Render et Godot
+const wss = new WebSocket.Server({ server });
 
-wss.on('connection', (ws) => {
-    console.log('Nouvelle connexion établie !');
+wss.on('connection', (ws, req) => {
+    const ip = req.socket.remoteAddress;
+    console.log(`[SERVEUR] Connexion établie avec : ${ip}`);
 
     ws.on('message', (data) => {
-        // Conversion du buffer en texte
         const message = data.toString();
-        console.log("Score reçu :", message);
+        console.log(`[DATA] Message reçu : ${message}`);
 
-        // Envoi à TOUS les clients (Site + Godot)
+        // On renvoie à TOUT LE MONDE (Site + Godot)
+        let count = 0;
         wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(message);
+                count++;
             }
         });
+        console.log(`[DIFFUSION] Envoyé à ${count} clients.`);
     });
 
-    ws.on('error', (err) => console.error("Erreur WS:", err));
+    ws.on('close', () => console.log('[SERVEUR] Un client s\'est déconnecté.'));
+    ws.on('error', (err) => console.error("[ERREUR WS]:", err));
 });
 
 server.listen(port, '0.0.0.0', () => {
