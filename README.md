@@ -37,13 +37,3 @@ Travailler à plusieurs sur Godot nécessite un peu d'organisation pour éviter 
 > **Note importante :** Vérifiez que le dépôt contient bien un fichier `.gitignore` adapté à Godot. Il est crucial d'exclure le dossier `.godot/` (qui contient des données locales et temporaires) pour ne pas polluer le dépôt.
 
 ---
-
-## Structure du Projet
-Afin de garder le projet organisé, veuillez respecter l'arborescence suivante lors de l'ajout de nouveaux fichiers :
-
-| Dossier | Contenu principal |
-| :--- | :--- |
-| `Assets/` | Modèles, textures, musiques, effets sonores et polices. |
-| `Scenes/` | Niveaux, interfaces et scènes instanciables (joueur, ennemis). |
-| `Scripts/` | Fichiers de code source. |
-| `UI/` | Éléments d'interface utilisateur spécifiques. |
