@@ -11,8 +11,13 @@ config_version=5
 [application]
 
 config/name="Dookey Ascension"
-config/features=PackedStringArray("4.5", "Forward Plus")
+run/main_scene="uid://bujrdbudr4a6y"
+config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
+
+[dotnet]
+
+project/assembly_name="Dookey Ascension"
 
 [rendering]
 
