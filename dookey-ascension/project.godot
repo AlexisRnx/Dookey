@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Dookey Ascension"
-run/main_scene="uid://bujrdbudr4a6y"
+run/main_scene="uid://bcd6nfk1an0rr"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 

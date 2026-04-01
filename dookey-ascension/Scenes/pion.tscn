@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://dghjvh23j2ng6"]
+
+[ext_resource type="Script" uid="uid://7o3p6l71oodd" path="res://Scripts/pion.gd" id="1_qhv44"]
+
+[node name="Pion" type="Node2D"]
+script = ExtResource("1_qhv44")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]

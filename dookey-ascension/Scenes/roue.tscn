@@ -1,13 +1,13 @@
 [gd_scene load_steps=3 format=3 uid="uid://bujrdbudr4a6y"]
 
-[ext_resource type="Script" uid="uid://c432vwg5rwdjh" path="res://Scripts/node_2d.gd" id="1_widt7"]
+[ext_resource type="Script" path="res://Scripts/roue.gd" id="1_vb1pb"]
 [ext_resource type="Texture2D" uid="uid://bvk6lla5sn08m" path="res://Assets/image-removebg-preview (1).png" id="2_vb1pb"]
 
 [node name="Roue" type="Node2D"]
 
 [node name="Node2D" type="Node2D" parent="."]
 position = Vector2(1252, 295)
-script = ExtResource("1_widt7")
+script = ExtResource("1_vb1pb")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 position = Vector2(576, 100)
