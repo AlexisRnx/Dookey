@@ -1,15 +1,15 @@
 ea4bc82a6ad023ab7ee23ee620429895
-::res://::1774962510
-icon.svg::CompressedTexture2D::7253804348404301616::1774962438::1774962512::1::::<><><>0<>0<>8daaaf85afa39380c7ae2a8c2df01cb2<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
-::res://Assets/::1774962438
-image-removebg-preview (1).png::CompressedTexture2D::3882932627285602458::1774962438::1774962512::1::::<><><>0<>0<>fcb54f12df455d5823bd0e89d3abb4b3<>res://.godot/imported/image-removebg-preview (1).png-f63256bb88a9ead08a6dfc33858ad26e.ctex::
-pixil-frame-0.png::CompressedTexture2D::1391106145819759617::1774962438::1774962512::1::::<><><>0<>0<>826906b2b907dc46c2a9f75cb709d20e<>res://.godot/imported/pixil-frame-0.png-1e2e14a6fca0ab207413f8785ae4b7df.ctex::
-sprite_0.png::CompressedTexture2D::4025266525388991496::1774962438::1774962512::1::::<><><>0<>0<>338db5941dad68088465ddeeac47aa6a<>res://.godot/imported/sprite_0.png-c44ce0e2b42d59ff19343d1a77452feb.ctex::
-sprite_1.png::CompressedTexture2D::728044393244076869::1774962438::1774962512::1::::<><><>0<>0<>ac51cb6d6231f5235fb31940f014ecad<>res://.godot/imported/sprite_1.png-a77336b047ef8ef0a353c47cdff89650.ctex::
-sprite_2.png::CompressedTexture2D::7848030810797013572::1774962438::1774962512::1::::<><><>0<>0<>e06204d92a017b56c49dd537e4910e4d<>res://.godot/imported/sprite_2.png-e13fa89de4eb420879977d519cdf40a3.ctex::
-sprite_3.png::CompressedTexture2D::1599887979257713723::1774962438::1774962512::1::::<><><>0<>0<>42270e2181fde74c4f267406953a772f<>res://.godot/imported/sprite_3.png-f395f837fbd820d3c345abf833bc3842.ctex::
-::res://Scenes/::1774962438
-game.tscn::PackedScene::2534897225574525535::1774962438::0::1::::<><><>0<>0<><>::uid://t24kyd6dxwt2::::res://Assets/pixil-frame-0.png
-roue.tscn::PackedScene::3809814586078634638::1774962438::0::1::::<><><>0<>0<><>::uid://c432vwg5rwdjh::::res://Scripts/node_2d.gd<>uid://bvk6lla5sn08m::::res://Assets/image-removebg-preview (1).png
+::res://::1775031657
+icon.svg::CompressedTexture2D/CompressedTexture2D::7253804348404301616::1774962438::1774962512::1::::<><><>0<>0<>8daaaf85afa39380c7ae2a8c2df01cb2<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
+::res://Assets/::1774962512
+image-removebg-preview (1).png::CompressedTexture2D/CompressedTexture2D::3882932627285602458::1774962438::1774962512::1::::<><><>0<>0<>fcb54f12df455d5823bd0e89d3abb4b3<>res://.godot/imported/image-removebg-preview (1).png-f63256bb88a9ead08a6dfc33858ad26e.ctex::
+pixil-frame-0.png::CompressedTexture2D/CompressedTexture2D::1391106145819759617::1774962438::1774962512::1::::<><><>0<>0<>826906b2b907dc46c2a9f75cb709d20e<>res://.godot/imported/pixil-frame-0.png-1e2e14a6fca0ab207413f8785ae4b7df.ctex::
+sprite_0.png::CompressedTexture2D/CompressedTexture2D::4025266525388991496::1774962438::1774962512::1::::<><><>0<>0<>338db5941dad68088465ddeeac47aa6a<>res://.godot/imported/sprite_0.png-c44ce0e2b42d59ff19343d1a77452feb.ctex::
+sprite_1.png::CompressedTexture2D/CompressedTexture2D::728044393244076869::1774962438::1774962512::1::::<><><>0<>0<>ac51cb6d6231f5235fb31940f014ecad<>res://.godot/imported/sprite_1.png-a77336b047ef8ef0a353c47cdff89650.ctex::
+sprite_2.png::CompressedTexture2D/CompressedTexture2D::7848030810797013572::1774962438::1774962512::1::::<><><>0<>0<>e06204d92a017b56c49dd537e4910e4d<>res://.godot/imported/sprite_2.png-e13fa89de4eb420879977d519cdf40a3.ctex::
+sprite_3.png::CompressedTexture2D/CompressedTexture2D::1599887979257713723::1774962438::1774962512::1::::<><><>0<>0<>42270e2181fde74c4f267406953a772f<>res://.godot/imported/sprite_3.png-f395f837fbd820d3c345abf833bc3842.ctex::
+::res://Scenes/::1774970751
+game.tscn::PackedScene/PackedScene::2534897225574525535::1774970751::0::1::::<><><>0<>0<><>::uid://t24kyd6dxwt2::::res://Assets/pixil-frame-0.png
+roue.tscn::PackedScene/PackedScene::3809814586078634638::1774962631::0::1::::<><><>0<>0<><>::uid://c432vwg5rwdjh::::res://Scripts/node_2d.gd<>uid://bvk6lla5sn08m::::res://Assets/image-removebg-preview (1).png
 ::res://Scripts/::1774962438
-node_2d.gd::GDScript::6867798436648690885::1774962438::0::1::::<>Node2D<><>0<>0<><>::
+node_2d.gd::GDScript/GDScript::6867798436648690885::1774962438::0::1::::<>Node2D<><>0<>0<><>::
