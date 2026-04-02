@@ -5,9 +5,10 @@ signal resultat_roue(chiffre: int)
 
 # Dictionnaire simulant les votes. Les valeurs peuvent être modifiées manuellement.
 var votes_manuels = {
-	1: 10,
-	4: 2,
-	7: 5
+	1: 3,
+	2: 2,
+	3: 0,
+	6: 5
 }
 
 var total_votes := 0
