@@ -22,7 +22,7 @@ func _ready() -> void:
 	# Centre automatiquement le nœud au milieu de l'écran visible
 	position = get_viewport_rect().size / 2.0
 
-	# ── Repositionne la flèche indicatrice au-dessus de la roue ─────────
+	# ── Repositionne la flèche indicatrice au-dessus de la roue ────────
 	# Le Sprite2D est enfant du nœud RACINE (pas de ce Node2D),
 	# donc il ne tourne pas avec la roue — parfait.
 	var fleche: Sprite2D = get_parent().get_node_or_null("Sprite2D")
