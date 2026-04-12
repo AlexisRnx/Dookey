@@ -23,7 +23,13 @@ var noms_equipes := ["Équipe 1", "Équipe 2", "Équipe 3", "Équipe 4"]
 # HUD
 var hud_layer    : CanvasLayer
 var hud_label    : Label
+var temp_label_chrono: Label
 var roue_instance: Node2D       # instance de la scène Roue dans le HUD
+
+# Chrono & Votes
+var temps_chrono := 0.0
+var chrono_actif := false
+var vote_en_cours: Dictionary = {}
 
 # ═══════════════════════════════════════════════════════════════════════════
 func _ready() -> void:
@@ -50,7 +56,6 @@ func _ready() -> void:
 	_basculer_camera()
 	_afficher_tour()
 	_mettre_a_jour_hud()
-	_montrer_roue()   # Affiche la roue pour le premier tour
 
 # ═══════════════════════════════════════════════════════════════════════════
 # HUD  (CanvasLayer avec label + conteneur pour la roue)
@@ -76,6 +81,22 @@ func _creer_hud() -> void:
 	hud_label.text = ""
 	hud_layer.add_child(hud_label)
 
+	# Label chronomètre — centré au milieu
+	temp_label_chrono = Label.new()
+	temp_label_chrono.name = "LabelChrono"
+	temp_label_chrono.set_anchors_preset(Control.PRESET_CENTER)
+	temp_label_chrono.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	temp_label_chrono.grow_vertical = Control.GROW_DIRECTION_BOTH
+	temp_label_chrono.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	temp_label_chrono.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
+	temp_label_chrono.add_theme_font_size_override("font_size", 120)
+	temp_label_chrono.add_theme_color_override("font_color", Color.WHITE)
+	temp_label_chrono.add_theme_color_override("font_outline_color", Color.BLACK)
+	temp_label_chrono.add_theme_constant_override("outline_size", 15)
+	temp_label_chrono.text = "10"
+	temp_label_chrono.visible = false
+	hud_layer.add_child(temp_label_chrono)
+
 	# Instance de la roue — centrée dans le HUD
 	roue_instance = ROUE_SCENE.instantiate()
 	# La scène Roue place son Node2D (roue dessinée) en position (1252, 295)
@@ -87,6 +108,11 @@ func _creer_hud() -> void:
 	# Le Node2D qui a le script roue.gd est l'enfant "Node2D" de la scène Roue
 	var noeud_roue: Node2D = roue_instance.get_node("Node2D")
 	noeud_roue.resultat_roue.connect(_sur_resultat_roue)
+
+	# ── Connexion du serveur WebSocket → roue ─────────────────────────────
+	# WebSocketServer est un Autoload enregistré dans project.godot
+	WebSocketServer.votes_recus.connect(_sur_votes_recus)
+	WebSocketServer.lancer_roue_web.connect(_sur_lancer_roue_web)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Affiche / cache la roue
@@ -101,6 +127,48 @@ func _cacher_roue() -> void:
 func _sur_resultat_roue(chiffre: int) -> void:
 	_cacher_roue()
 	_avancer_pion(chiffre)
+
+# ── Reçoit les votes du site Web via WebSocket ────────────────────────────
+func _sur_votes_recus(votes: Dictionary) -> void:
+	for chiffre in votes:
+		if vote_en_cours.has(chiffre):
+			vote_en_cours[chiffre] += votes[chiffre]
+		else:
+			vote_en_cours[chiffre] = votes[chiffre]
+	print("[Game] Vote enregistré ! Total des votes agrégés : ", vote_en_cours)
+
+# ── Le site a envoyé CLIC → ignore si chrono en attente ────────────────────
+func _sur_lancer_roue_web() -> void:
+	if not en_deplacement and not chrono_actif:
+		if roue_instance.visible:
+			var noeud_roue: Node2D = roue_instance.get_node("Node2D")
+			noeud_roue.lancer_roue_depuis_web()
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Gestion du chrono temps réel
+# ═══════════════════════════════════════════════════════════════════════════
+func _process(delta: float) -> void:
+	if chrono_actif:
+		temps_chrono -= delta
+		if temps_chrono <= 0.0:
+			chrono_actif = false
+			temp_label_chrono.visible = false
+			_declencher_roue()
+		else:
+			temp_label_chrono.text = str(ceili(temps_chrono))
+
+func _declencher_roue() -> void:
+	_montrer_roue()
+	var noeud_roue: Node2D = roue_instance.get_node("Node2D")
+	
+	if vote_en_cours.is_empty():
+		# Si aucun vote sur le téléphone, nombre aléatoire
+		print("[Game] Aucun vote reçu pendant les 10s. Vote aléatoire appliqué.")
+		vote_en_cours = { randi_range(1, 6): 1 }
+		WebSocketServer.envoyer_message("TEMPS_ECOULE")
+		
+	noeud_roue.set_votes_depuis_web(vote_en_cours)
+	noeud_roue.lancer_roue_depuis_web()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Construction du parcours (uniquement atlas 5,4 / 6,4 / 5,5 / 6,5)
@@ -184,7 +252,6 @@ func _avancer_pion(nb: int) -> void:
 	_basculer_camera()
 	_afficher_tour()
 	_mettre_a_jour_hud()
-	_montrer_roue()   # Réaffiche la roue pour le prochain tour
 
 # ───────────────────────────────────────────────────────────────────────────
 func _animer_pion(index_pion: int, index_case: int) -> void:
@@ -236,3 +303,12 @@ func _basculer_camera() -> void:
 
 func _afficher_tour() -> void:
 	print("─── Tour de : %s — tourne la roue ! ───" % pions[tour_actuel]["nom"])
+	vote_en_cours.clear()
+	temps_chrono = 10.0
+	chrono_actif = true
+	temp_label_chrono.text = "10"
+	temp_label_chrono.visible = true
+	_cacher_roue()
+	var msg = "NOUVEAU_TOUR:%d:%s" % [tour_actuel, pions[tour_actuel]["nom"]]
+	WebSocketServer.etat_courant = msg
+	WebSocketServer.envoyer_message(msg)

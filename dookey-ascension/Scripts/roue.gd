@@ -3,13 +3,21 @@ extends Node2D
 # Émis quand la roue finit de tourner
 signal resultat_roue(chiffre: int)
 
-# Dictionnaire simulant les votes. Les valeurs peuvent être modifiées manuellement.
-var votes_manuels = {
-	1: 3,
-	2: 2,
-	3: 0,
-	6: 5
-}
+# Dictionnaire simulant les votes. Mis à jour dynamiquement par le Web Controller.
+var votes_manuels = {}
+
+# Appelée par game.gd quand le serveur WebSocket reçoit des votes du site
+func set_votes_depuis_web(nouveaux_votes: Dictionary) -> void:
+	votes_manuels = nouveaux_votes
+	donnees_portions.clear()
+	total_votes = 0
+	_calculer_portions()
+	queue_redraw()
+	print("[Roue] Votes mis à jour depuis le web : ", votes_manuels)
+
+# Appelée par game.gd quand le site envoie CLIC (lancement direct)
+func lancer_roue_depuis_web() -> void:
+	lancer_roue()
 
 var total_votes := 0
 var donnees_portions := []
