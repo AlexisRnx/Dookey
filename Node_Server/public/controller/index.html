@@ -74,15 +74,9 @@
         }
         #ws-status { width: 10px; height: 10px; background: red; border-radius: 50%; display: inline-block; margin-right: 8px; }
 
-        #container-jeu {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center; z-index: 2; pointer-events: none; width: 100%;
-        }
-        h2 { margin: 0 0 10px 0; font-size: 24px; pointer-events: none; }
-        #txt-info { font-size: 16px; margin-bottom: 20px; font-weight: bold; color: yellow; pointer-events: none;}
 
-        #ecran-cliquable { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; cursor: pointer; transition: opacity 0.3s; }
+
+
     </style>
 </head>
 <body>
@@ -111,9 +105,8 @@
             <span id="ws-label">En attente...</span>
         </div>
         
-        <div id="container-jeu">
+        <div id="ecran-cliquable">
             <h2 id="nom-equipe-tour">En attente du jeu...</h2>
-            <div id="txt-info"></div>
             
             <div id="container-barre">
                 <div id="curseur"></div>
@@ -124,9 +117,9 @@
                 <div class="case-score">X</div>
                 <div class="case-score">X</div>
             </div>
+            
+            <p id="txt-info">Regardez l'écran principal</p>
         </div>
-        
-        <div id="ecran-cliquable"></div>
     </div>
 
     <script src="script.js"></script>
