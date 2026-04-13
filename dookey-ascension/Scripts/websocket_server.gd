@@ -23,8 +23,12 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		var host = JavaScriptBridge.eval("window.location.host")
 		var protocol = JavaScriptBridge.eval("window.location.protocol == 'https:' ? 'wss:' : 'ws:'")
+		var saved_code = JavaScriptBridge.eval("window.sessionStorage.getItem('dookeyGodotCode')")
 		if host and protocol:
-			URL = "%s//%s/?clientType=game" % [protocol, host]
+			if saved_code and saved_code != "":
+				URL = "%s//%s/?clientType=game&roomCode=%s" % [protocol, host, saved_code]
+			else:
+				URL = "%s//%s/?clientType=game" % [protocol, host]
 			
 	var tls : TLSOptions = null
 	if URL.begins_with("wss://"):
@@ -68,6 +72,8 @@ func _traiter_message(message: String) -> void:
 	if message.begins_with("ROOM_CREATED:"):
 		var code = message.substr(13).strip_edges()
 		code_salle_actuel = code
+		if OS.has_feature("web"):
+			JavaScriptBridge.eval("window.sessionStorage.setItem('dookeyGodotCode', '%s')" % code)
 		code_salle_recu.emit(code)
 		
 	elif message.begins_with("PLAYER_JOINED:"):

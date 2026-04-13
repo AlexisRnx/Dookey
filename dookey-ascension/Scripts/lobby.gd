@@ -79,7 +79,15 @@ func _process(_delta: float) -> void:
 
 func _sur_code_salle_recu(code: String) -> void:
 	code_label.text = code
-	var url_cible = "https://dookey-h1if.onrender.com/controller?code=" + code
+	
+	var base_url = "https://dookey-h1if.onrender.com"
+	if OS.has_feature("web"):
+		var host = JavaScriptBridge.eval("window.location.host")
+		var protocol = JavaScriptBridge.eval("window.location.protocol")
+		if host and protocol:
+			base_url = protocol + "//" + host
+			
+	var url_cible = base_url + "/controller?code=" + code
 	var url_api = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + url_cible.uri_encode()
 	http_request.request(url_api)
 

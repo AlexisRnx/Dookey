@@ -50,16 +50,34 @@ wss.on('connection', (ws, req) => {
     if (url.pathname === '/controller') clientType = 'controller';
 
     if (clientType === 'game') {
-        let roomCode = generateRoomCode();
-        while (rooms.has(roomCode)) {
-            roomCode = generateRoomCode();
-        }
-
-        console.log(`[Serveur] Le jeu Godot est connecté ! Création de la salle : ${roomCode}`);
-        rooms.set(roomCode, { gameWs: ws, controllers: new Set(), isLocked: false, pseudos: new Set() });
+        const requestedCode = url.searchParams.get('roomCode');
+        const upperReq = requestedCode ? requestedCode.toUpperCase() : null;
         
-        // Notify Godot of its new room code
-        ws.send(`ROOM_CREATED:${roomCode}`);
+        let roomCode;
+        if (upperReq && rooms.has(upperReq)) {
+            // Reconnexion du Godot (Suite à un F5)
+            roomCode = upperReq;
+            const room = rooms.get(roomCode);
+            room.gameWs = ws;
+            room.isLocked = false; // On deverrouille car Godot retourne au Menu
+            console.log(`[Serveur] Le Godot s'est reconnecté à sa salle : ${roomCode}`);
+            ws.send(`ROOM_CREATED:${roomCode}`);
+            
+            // Renvoie la liste des joueurs existants
+            for (const pseudo of room.pseudos) {
+                ws.send(`PLAYER_JOINED:${pseudo}`);
+            }
+            
+        } else {
+            // Nouvelle Partie
+            roomCode = generateRoomCode();
+            while (rooms.has(roomCode)) {
+                roomCode = generateRoomCode();
+            }
+            console.log(`[Serveur] Le jeu Godot est connecté ! Création de la salle : ${roomCode}`);
+            rooms.set(roomCode, { gameWs: ws, controllers: new Set(), isLocked: false, pseudos: new Set() });
+            ws.send(`ROOM_CREATED:${roomCode}`);
+        }
 
         ws.on('message', (message, isBinary) => {
             const msgStr = isBinary ? message.toString('utf8') : message.toString();
