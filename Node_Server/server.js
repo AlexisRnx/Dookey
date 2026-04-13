@@ -56,7 +56,7 @@ wss.on('connection', (ws, req) => {
         }
 
         console.log(`[Serveur] Le jeu Godot est connecté ! Création de la salle : ${roomCode}`);
-        rooms.set(roomCode, { gameWs: ws, controllers: new Set(), isLocked: false });
+        rooms.set(roomCode, { gameWs: ws, controllers: new Set(), isLocked: false, pseudos: new Set() });
         
         // Notify Godot of its new room code
         ws.send(`ROOM_CREATED:${roomCode}`);
@@ -105,7 +105,7 @@ wss.on('connection', (ws, req) => {
         const upperCode = roomCode.toUpperCase();
         const room = rooms.get(upperCode);
         
-        if (room.isLocked) {
+        if (room.isLocked && !room.pseudos.has(pseudo)) {
             console.log(`[Serveur] Rejet : Tentative de rejoindre la salle verrouillée ${upperCode}`);
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send("ERROR:ROOM_LOCKED");
@@ -114,6 +114,7 @@ wss.on('connection', (ws, req) => {
             return;
         }
 
+        room.pseudos.add(pseudo);
         console.log(`[Serveur] Le joueur ${pseudo} a rejoint la salle ${upperCode}`);
         room.controllers.add(ws);
         
