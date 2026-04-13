@@ -15,7 +15,7 @@ signal code_salle_recu(code: String)
 var _ws := WebSocketPeer.new()
 var est_connecte := false
 # On pointe par défaut sur le serveur Render pour faciliter les tests depuis l'éditeur
-var URL := "wss://dookey-h1if.onrender.com/game"
+var URL := "wss://dookey-h1if.onrender.com/?clientType=game"
 var etat_courant : String = "LOBBY_ATTENTE"
 var code_salle_actuel : String = ""
 
@@ -24,9 +24,13 @@ func _ready() -> void:
 		var host = JavaScriptBridge.eval("window.location.host")
 		var protocol = JavaScriptBridge.eval("window.location.protocol == 'https:' ? 'wss:' : 'ws:'")
 		if host and protocol:
-			URL = "%s//%s/game" % [protocol, host]
+			URL = "%s//%s/?clientType=game" % [protocol, host]
 			
-	var err := _ws.connect_to_url(URL)
+	var tls : TLSOptions = null
+	if URL.begins_with("wss://"):
+		tls = TLSOptions.client_unsafe()
+		
+	var err := _ws.connect_to_url(URL, tls)
 	if err != OK:
 		push_error("[WS Client] Impossible de se connecter au Node Serveur URL:", URL)
 		return
@@ -51,9 +55,14 @@ func _process(_delta: float) -> void:
 				_traiter_message(message)
 				
 		WebSocketPeer.STATE_CLOSED:
+			var code = _ws.get_close_code()
+			var reason = _ws.get_close_reason()
 			if est_connecte:
-				print("[WS Client] Connexion perdue.")
+				print("[WS Client] Déconnecté du serveur. Code:", code, " Raison:", reason)
 				est_connecte = false
+			else:
+				if code != -1 or reason != "":
+					print("[WS Client] Échec de la connexion. Code:", code, " Raison: ", reason)
 
 func _traiter_message(message: String) -> void:
 	if message.begins_with("ROOM_CREATED:"):
