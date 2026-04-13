@@ -20,7 +20,7 @@ app.get('/jeu', (req, res) => {
 
 // Add a default route helping the user redirect to the right place
 app.get('/', (req, res) => {
-    res.send('<h2>Dookey Serveur actif !</h2> <a href="/site">Aller sur la Télécommande (Site)</a> <br><br> <a href="/jeu">Aller sur le Jeu (Godot)</a>');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Create HTTP server to attach WebSocket server

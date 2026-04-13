@@ -20,7 +20,7 @@ func _ready() -> void:
 		var host = JavaScriptBridge.eval("window.location.host")
 		var protocol = JavaScriptBridge.eval("window.location.protocol == 'https:' ? 'wss:' : 'ws:'")
 		if host and protocol:
-			 URL = "%s//%s?clientType=game" % [protocol, host]
+			URL = "%s//%s?clientType=game" % [protocol, host]
 			
 	var err := _ws.connect_to_url(URL)
 	if err != OK:
@@ -83,4 +83,3 @@ func _traiter_message(message: String) -> void:
 func envoyer_message(msg: String) -> void:
 	if _ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
 		_ws.send_text(msg)
-
