@@ -53,8 +53,10 @@ wss.on('connection', (ws, req) => {
         });
 
         ws.on('close', () => {
-            console.log('[Serveur] Le jeu Godot sest déconnecté.');
-            gameClient = null;
+            console.log('[Serveur] Une instance du jeu Godot s\'est déconnectée.');
+            if (gameClient === ws) {
+                gameClient = null;
+            }
         });
 
     } else {
