@@ -71,6 +71,16 @@ func _ready() -> void:
 	# Si le Websocket s'était déjà connecté (hyper rapide), on interroge le code directement !
 	if WebSocketServer.code_salle_actuel != "":
 		_sur_code_salle_recu(WebSocketServer.code_salle_actuel)
+		
+	# HOT-START : Si on trouve une sauvegarde du plateau, on zappe le lobby !
+	if OS.has_feature("web"):
+		var save_str = JavaScriptBridge.eval("window.sessionStorage.getItem('dookeyGameState');")
+		if save_str and save_str != "":
+			print("[lobby.gd] Sauvegarde trouvée ! Reprise à chaud de la partie...")
+			call_deferred("_lancer_restauration")
+
+func _lancer_restauration() -> void:
+	get_tree().change_scene_to_file("res://Scenes/game.tscn")
 
 func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("ui_accept"):

@@ -53,6 +53,8 @@ func _ready() -> void:
 		pions.append({ "node": pion_node, "case": 0, "nom": noms_equipes[i], "camera": cam })
 		_placer_pion(i, 0)
 
+	_restaurer_partie()
+
 	_basculer_camera()
 	_afficher_tour()
 	_mettre_a_jour_hud()
@@ -251,9 +253,37 @@ func _avancer_pion(nb: int) -> void:
 
 	en_deplacement = false
 	tour_actuel    = (tour_actuel + 1) % pions.size()
+	_sauvegarder_partie()
+	
 	_basculer_camera()
 	_afficher_tour()
 	_mettre_a_jour_hud()
+
+# ───────────────────────────────────────────────────────────────────────────
+# HOT RELOAD / SAUVEGARDE
+# ───────────────────────────────────────────────────────────────────────────
+func _sauvegarder_partie() -> void:
+	if OS.has_feature("web"):
+		var cases = []
+		for p in pions:
+			cases.append(p["case"])
+		var donnees = { "tour": tour_actuel, "cases": cases }
+		var json_str = JSON.stringify(donnees)
+		JavaScriptBridge.eval("window.sessionStorage.setItem('dookeyGameState', '%s');" % json_str)
+
+func _restaurer_partie() -> void:
+	if OS.has_feature("web"):
+		var save_str = JavaScriptBridge.eval("window.sessionStorage.getItem('dookeyGameState');")
+		if save_str and save_str != "":
+			var dict = JSON.parse_string(save_str)
+			if typeof(dict) == TYPE_DICTIONARY:
+				tour_actuel = dict.get("tour", 0)
+				var cases_tab = dict.get("cases", [0, 0, 0, 0])
+				for i in range(pions.size()):
+					if i < cases_tab.size():
+						pions[i]["case"] = cases_tab[i]
+						_placer_pion(i, cases_tab[i])
+				print("[game.gd] Retauration reussie ! Tour = %d" % tour_actuel)
 
 # ───────────────────────────────────────────────────────────────────────────
 func _animer_pion(index_pion: int, index_case: int) -> void:
