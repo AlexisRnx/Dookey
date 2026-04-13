@@ -17,6 +17,7 @@ var parcours       : Array[Vector2i]   = []
 var pions          : Array[Dictionary] = []   # { node, case, nom, camera }
 var tour_actuel    : int  = 0
 var en_deplacement : bool = false
+var est_restauration : bool = false
 
 var noms_equipes := ["Équipe 1", "Équipe 2", "Équipe 3", "Équipe 4"]
 
@@ -56,7 +57,12 @@ func _ready() -> void:
 	_restaurer_partie()
 
 	_basculer_camera()
-	_afficher_tour()
+	
+	if not est_restauration:
+		_afficher_tour()
+	else:
+		_reprendre_tour()
+		
 	_mettre_a_jour_hud()
 	
 	WebSocketServer.verrouiller_salle()
@@ -151,15 +157,24 @@ func _sur_lancer_roue_web() -> void:
 # ═══════════════════════════════════════════════════════════════════════════
 # Gestion du chrono temps réel
 # ═══════════════════════════════════════════════════════════════════════════
+var dernier_secondes_sauvegardees := 10
+
 func _process(delta: float) -> void:
 	if chrono_actif:
 		temps_chrono -= delta
+		
+		# Sauvegarde constante synchronisée chaque seconde écoulée
+		var sec_int = ceili(temps_chrono)
+		if sec_int != dernier_secondes_sauvegardees and sec_int >= 0:
+			dernier_secondes_sauvegardees = sec_int
+			_sauvegarder_partie()
+			
 		if temps_chrono <= 0.0:
 			chrono_actif = false
 			temp_label_chrono.visible = false
 			_declencher_roue()
 		else:
-			temp_label_chrono.text = str(ceili(temps_chrono))
+			temp_label_chrono.text = str(sec_int)
 
 func _declencher_roue() -> void:
 	_montrer_roue()
@@ -267,7 +282,13 @@ func _sauvegarder_partie() -> void:
 		var cases = []
 		for p in pions:
 			cases.append(p["case"])
-		var donnees = { "tour": tour_actuel, "cases": cases }
+		var donnees = { 
+			"tour": tour_actuel, 
+			"cases": cases,
+			"chrono": temps_chrono,
+			"chrono_actif": chrono_actif,
+			"votes": vote_en_cours
+		}
 		var json_str = JSON.stringify(donnees)
 		JavaScriptBridge.eval("window.sessionStorage.setItem('dookeyGameState', '%s');" % json_str)
 
@@ -275,15 +296,21 @@ func _restaurer_partie() -> void:
 	if OS.has_feature("web"):
 		var save_str = JavaScriptBridge.eval("window.sessionStorage.getItem('dookeyGameState');")
 		if save_str and save_str != "":
+			est_restauration = true
 			var dict = JSON.parse_string(save_str)
 			if typeof(dict) == TYPE_DICTIONARY:
 				tour_actuel = dict.get("tour", 0)
+				temps_chrono = dict.get("chrono", 10.0)
+				dernier_secondes_sauvegardees = ceili(temps_chrono)
+				chrono_actif = dict.get("chrono_actif", false)
+				vote_en_cours = dict.get("votes", {})
+				
 				var cases_tab = dict.get("cases", [0, 0, 0, 0])
 				for i in range(pions.size()):
 					if i < cases_tab.size():
 						pions[i]["case"] = cases_tab[i]
 						_placer_pion(i, cases_tab[i])
-				print("[game.gd] Retauration reussie ! Tour = %d" % tour_actuel)
+				print("[game.gd] Restauration reussie ! Tour = %d, Chrono = %f" % [tour_actuel, temps_chrono])
 
 # ───────────────────────────────────────────────────────────────────────────
 func _animer_pion(index_pion: int, index_case: int) -> void:
@@ -343,4 +370,14 @@ func _afficher_tour() -> void:
 	_cacher_roue()
 	var msg = "NOUVEAU_TOUR:%d:%s" % [tour_actuel, pions[tour_actuel]["nom"]]
 	WebSocketServer.etat_courant = msg
+	WebSocketServer.envoyer_message(msg)
+
+func _reprendre_tour() -> void:
+	print("─── Reprise à chaud du Tour de : %s ───" % pions[tour_actuel]["nom"])
+	temp_label_chrono.text = str(ceili(temps_chrono))
+	temp_label_chrono.visible = chrono_actif
+	_cacher_roue()
+	var msg = "NOUVEAU_TOUR:%d:%s" % [tour_actuel, pions[tour_actuel]["nom"]]
+	WebSocketServer.etat_courant = msg
+	# Les manettes reconnectées verront "NOUVEAU_TOUR" et pourront revoter si elles reconnectent. 
 	WebSocketServer.envoyer_message(msg)
