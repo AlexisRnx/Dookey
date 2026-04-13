@@ -6,15 +6,15 @@ const http = require('http');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Serve the controller under the URL "/site"
-app.use('/site', express.static(path.join(__dirname, 'public/controller')));
-app.get('/site', (req, res) => {
+// Serve the controller under the URL "/controller"
+app.use('/controller', express.static(path.join(__dirname, 'public/controller')));
+app.get('/controller', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/controller/index.html'));
 });
 
-// Serve the Godot exported game under the URL "/jeu"
-app.use('/jeu', express.static(path.join(__dirname, 'godot')));
-app.get('/jeu', (req, res) => {
+// Serve the Godot exported game under the URL "/display"
+app.use('/display', express.static(path.join(__dirname, 'godot')));
+app.get('/display', (req, res) => {
     res.sendFile(path.join(__dirname, 'godot', 'Dookey Ascension.html'));
 });
 
