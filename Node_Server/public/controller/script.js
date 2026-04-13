@@ -7,12 +7,22 @@ const errorLabel = document.getElementById('login-error');
 // Remplissage auto si URL = ?code=XYZ
 const urlParams = new URLSearchParams(window.location.search);
 const codeParam = urlParams.get('code');
+
+let savedCode = sessionStorage.getItem('dookeyRoomCode');
+let savedPseudo = sessionStorage.getItem('dookeyPseudo');
+
 if (codeParam) {
     inputCode.value = codeParam.toUpperCase();
+} else if (savedCode) {
+    inputCode.value = savedCode;
+}
+if (savedPseudo) {
+    inputPseudo.value = savedPseudo;
 }
 
 let socket;
 let isGameScreenActive = false;
+let animFrameId = null;
 
 // Variables pour l'interface de jeu Controller
 let aVoteCeTour = false;
@@ -40,6 +50,12 @@ btnJoin.onclick = () => {
     errorLabel.style.display = "none";
     initWebSocket(code, pseudo);
 };
+
+// Reconnexion automatique si on actualise !
+if (savedCode && savedPseudo && !codeParam) {
+    btnJoin.innerText = "Reconnexion...";
+    initWebSocket(savedCode, savedPseudo);
+}
 
 function initWebSocket(code, pseudo) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -69,6 +85,11 @@ function initWebSocket(code, pseudo) {
         if (!isGameScreenActive) {
             if (data === "JOIN_SUCCESS") {
                 isGameScreenActive = true;
+                
+                // Mémoriser la session
+                sessionStorage.setItem('dookeyRoomCode', code);
+                sessionStorage.setItem('dookeyPseudo', pseudo);
+                
                 document.getElementById('login-screen').style.display = "none";
                 document.getElementById('game-screen').style.display = "block";
                 document.getElementById('ws-status').style.background = 'lime';
@@ -78,7 +99,15 @@ function initWebSocket(code, pseudo) {
                 animer();
                 evaluerVerrouillageBase(); // Bloque tout jusqu'au NOUVEAU_TOUR
             } else if (data === "ERROR:ROOM_NOT_FOUND") {
+                sessionStorage.removeItem('dookeyRoomCode');
+                sessionStorage.removeItem('dookeyPseudo');
                 errorLabel.innerText = "Ce code de salle n'existe pas ou le jeu est fermé.";
+                errorLabel.style.display = "block";
+                socket.close();
+            } else if (data === "ERROR:ROOM_LOCKED") {
+                sessionStorage.removeItem('dookeyRoomCode');
+                sessionStorage.removeItem('dookeyPseudo');
+                errorLabel.innerText = "La partie a déjà commencé, entrée refusée !";
                 errorLabel.style.display = "block";
                 socket.close();
             }
@@ -143,7 +172,10 @@ function melangerChiffres() {
 }
 
 function animer() {
-    if (estArrete) return;
+    if (estArrete) {
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        return;
+    }
 
     position += vitesse * direction;
     if (position >= 100) { position = 100; direction = -1; }
@@ -157,7 +189,8 @@ function animer() {
         else c.classList.remove('case-active');
     });
 
-    requestAnimationFrame(animer);
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    animFrameId = requestAnimationFrame(animer);
 }
 
 document.getElementById('ecran-cliquable').onclick = () => {

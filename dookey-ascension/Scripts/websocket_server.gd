@@ -105,3 +105,6 @@ func _traiter_message(message: String) -> void:
 func envoyer_message(msg: String) -> void:
 	if _ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
 		_ws.send_text(msg)
+
+func verrouiller_salle() -> void:
+	envoyer_message("LOCK_ROOM")

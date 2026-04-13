@@ -56,6 +56,8 @@ func _ready() -> void:
 	_basculer_camera()
 	_afficher_tour()
 	_mettre_a_jour_hud()
+	
+	WebSocketServer.verrouiller_salle()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # HUD  (CanvasLayer avec label + conteneur pour la roue)
