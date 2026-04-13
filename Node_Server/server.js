@@ -6,8 +6,22 @@ const http = require('http');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Serve static files (the controllers and the game)
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve the controller under the URL "/site"
+app.use('/site', express.static(path.join(__dirname, 'public/controller')));
+app.get('/site', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/controller/index.html'));
+});
+
+// Serve the Godot exported game under the URL "/jeu"
+app.use('/jeu', express.static(path.join(__dirname, 'godot')));
+app.get('/jeu', (req, res) => {
+    res.sendFile(path.join(__dirname, 'godot', 'Dookey Ascension.html'));
+});
+
+// Add a default route helping the user redirect to the right place
+app.get('/', (req, res) => {
+    res.send('<h2>Dookey Serveur actif !</h2> <a href="/site">Aller sur la Télécommande (Site)</a> <br><br> <a href="/jeu">Aller sur le Jeu (Godot)</a>');
+});
 
 // Create HTTP server to attach WebSocket server
 const server = http.createServer(app);
