@@ -14,15 +14,17 @@ signal code_salle_recu(code: String)
 
 var _ws := WebSocketPeer.new()
 var est_connecte := false
-var URL := "ws://localhost:3000?clientType=game"
+# On pointe par défaut sur le serveur Render pour faciliter les tests depuis l'éditeur
+var URL := "wss://dookey-h1if.onrender.com/game"
 var etat_courant : String = "LOBBY_ATTENTE"
+var code_salle_actuel : String = ""
 
 func _ready() -> void:
 	if OS.has_feature("web"):
 		var host = JavaScriptBridge.eval("window.location.host")
 		var protocol = JavaScriptBridge.eval("window.location.protocol == 'https:' ? 'wss:' : 'ws:'")
 		if host and protocol:
-			URL = "%s//%s?clientType=game" % [protocol, host]
+			URL = "%s//%s/game" % [protocol, host]
 			
 	var err := _ws.connect_to_url(URL)
 	if err != OK:
@@ -56,6 +58,7 @@ func _process(_delta: float) -> void:
 func _traiter_message(message: String) -> void:
 	if message.begins_with("ROOM_CREATED:"):
 		var code = message.substr(13).strip_edges()
+		code_salle_actuel = code
 		code_salle_recu.emit(code)
 		
 	elif message.begins_with("PLAYER_JOINED:"):

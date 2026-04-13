@@ -32,7 +32,7 @@ const wss = new WebSocketServer({ server });
 function generateRoomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
-    for(let i=0; i<4; i++) {
+    for(let i=0; i<8; i++) {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
@@ -43,7 +43,11 @@ const rooms = new Map();
 
 wss.on('connection', (ws, req) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    const clientType = url.searchParams.get('clientType');
+    let clientType = url.searchParams.get('clientType');
+    
+    // Support URL pathways as fallback for tight game engines
+    if (url.pathname === '/game') clientType = 'game';
+    if (url.pathname === '/controller') clientType = 'controller';
 
     if (clientType === 'game') {
         let roomCode = generateRoomCode();
