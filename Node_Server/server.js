@@ -29,53 +29,94 @@ const server = http.createServer(app);
 // Initialize WebSocket server
 const wss = new WebSocketServer({ server });
 
-let gameClient = null;
-const controllers = new Set();
+function generateRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for(let i=0; i<4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
+// Map of rooms: roomCode -> { gameWs: WebSocket, controllers: Set<WebSocket> }
+const rooms = new Map();
 
 wss.on('connection', (ws, req) => {
-    // Parse URL query to identify client type
     const url = new URL(req.url, `http://${req.headers.host}`);
     const clientType = url.searchParams.get('clientType');
 
     if (clientType === 'game') {
-        console.log('[Serveur] Le jeu Godot est connecté !');
-        gameClient = ws;
+        let roomCode = generateRoomCode();
+        while (rooms.has(roomCode)) {
+            roomCode = generateRoomCode();
+        }
+
+        console.log(`[Serveur] Le jeu Godot est connecté ! Création de la salle : ${roomCode}`);
+        rooms.set(roomCode, { gameWs: ws, controllers: new Set() });
+        
+        // Notify Godot of its new room code
+        ws.send(`ROOM_CREATED:${roomCode}`);
 
         ws.on('message', (message, isBinary) => {
-            // Convert binary buffer to string if needed (ws gives Buffer by default)
             const msgStr = isBinary ? message.toString('utf8') : message.toString();
-            // Broadcast game messages to all controllers
-            for (const controller of controllers) {
-                if (controller.readyState === WebSocket.OPEN) {
-                    controller.send(msgStr);
+            // Broadcast game messages to all controllers in this room
+            const room = rooms.get(roomCode);
+            if (room) {
+                for (const controller of room.controllers) {
+                    if (controller.readyState === WebSocket.OPEN) {
+                        controller.send(msgStr);
+                    }
                 }
             }
         });
 
         ws.on('close', () => {
-            console.log('[Serveur] Une instance du jeu Godot s\'est déconnectée.');
-            if (gameClient === ws) {
-                gameClient = null;
-            }
+            console.log(`[Serveur] La salle ${roomCode} (Jeu Godot) s'est déconnectée.`);
+            rooms.delete(roomCode);
         });
 
-    } else {
-        console.log('[Serveur] Nouveau téléphone (contrôleur) connecté !');
-        controllers.add(ws);
+    } else if (clientType === 'controller') {
+        const roomCode = url.searchParams.get('roomCode');
+        const pseudo = url.searchParams.get('pseudo') || "Joueur Inconnu";
+
+        if (!roomCode || !rooms.has(roomCode.toUpperCase())) {
+            console.log(`[Serveur] Rejet : Un contrôleur a tenté de rejoindre la salle inexistante : ${roomCode}`);
+            if(ws.readyState === WebSocket.OPEN) {
+                ws.send("ERROR:ROOM_NOT_FOUND");
+                ws.close();
+            }
+            return;
+        }
+
+        const upperCode = roomCode.toUpperCase();
+        console.log(`[Serveur] Le joueur ${pseudo} a rejoint la salle ${upperCode}`);
+        const room = rooms.get(upperCode);
+        
+        room.controllers.add(ws);
+        
+        // Notify the Game that a player joined
+        if (room.gameWs.readyState === WebSocket.OPEN) {
+            room.gameWs.send(`PLAYER_JOINED:${pseudo}`);
+        }
+        
+        // Tell the controller they joined successfully
+        ws.send("JOIN_SUCCESS");
 
         ws.on('message', (message, isBinary) => {
             const msgStr = isBinary ? message.toString('utf8') : message.toString();
-            // Forward controller messages only to the Godot game client
-            if (gameClient && gameClient.readyState === WebSocket.OPEN) {
-                gameClient.send(msgStr);
+            // Forward controller messages only to the Godot game client in this room
+            if (room.gameWs && room.gameWs.readyState === WebSocket.OPEN) {
+                room.gameWs.send(msgStr);
             } else {
-                console.log('[Serveur] Message reçu mais le jeu nest pas connecté.');
+                console.log(`[Serveur] Message reçu dans ${upperCode} mais le jeu n'est plus connecté.`);
             }
         });
 
         ws.on('close', () => {
-            console.log('[Serveur] Un téléphone (contrôleur) sest déconnecté.');
-            controllers.delete(ws);
+            console.log(`[Serveur] Le joueur ${pseudo} s'est déconnecté de la salle ${upperCode}.`);
+            if (rooms.has(upperCode)) {
+                rooms.get(upperCode).controllers.delete(ws);
+            }
         });
     }
 });

@@ -17,11 +17,19 @@ var parcours       : Array[Vector2i]   = []
 var pions          : Array[Dictionary] = []   # { node, case, nom, camera }
 var tour_actuel    : int  = 0
 var en_deplacement : bool = false
+var est_en_lobby   : bool = true
 
 var noms_equipes := ["Équipe 1", "Équipe 2", "Équipe 3", "Équipe 4"]
 
-# HUD
+# HUD & Lobby
 var hud_layer    : CanvasLayer
+var lobby_layer  : CanvasLayer
+var qr_texture   : TextureRect
+var http_request : HTTPRequest
+var code_label   : Label
+var joueurs_label: Label
+var liste_joueurs: Array[String] = []
+
 var hud_label    : Label
 var temp_label_chrono: Label
 var roue_instance: Node2D       # instance de la scène Roue dans le HUD
@@ -54,8 +62,12 @@ func _ready() -> void:
 		_placer_pion(i, 0)
 
 	_basculer_camera()
-	_afficher_tour()
 	_mettre_a_jour_hud()
+	
+	WebSocketServer.code_salle_recu.connect(_sur_code_salle_recu)
+	WebSocketServer.joueur_rejoint.connect(_sur_joueur_rejoint)
+	
+	_creer_lobby()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # HUD  (CanvasLayer avec label + conteneur pour la roue)
@@ -115,6 +127,88 @@ func _creer_hud() -> void:
 	WebSocketServer.lancer_roue_web.connect(_sur_lancer_roue_web)
 
 # ═══════════════════════════════════════════════════════════════════════════
+# LOBBY & REJOINDRE
+# ═══════════════════════════════════════════════════════════════════════════
+func _creer_lobby() -> void:
+	lobby_layer = CanvasLayer.new()
+	lobby_layer.layer = 100
+	add_child(lobby_layer)
+	
+	var bg = ColorRect.new()
+	bg.color = Color(0.05, 0.05, 0.1, 0.95)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lobby_layer.add_child(bg)
+	
+	var vbox = VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_CENTER)
+	vbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	vbox.grow_vertical = Control.GROW_DIRECTION_BOTH
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 20)
+	bg.add_child(vbox)
+	
+	var titre = Label.new()
+	titre.text = "SALLE D'ATTENTE"
+	titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	titre.add_theme_font_size_override("font_size", 48)
+	vbox.add_child(titre)
+	
+	qr_texture = TextureRect.new()
+	qr_texture.custom_minimum_size = Vector2(300, 300)
+	qr_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	qr_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	vbox.add_child(qr_texture)
+	
+	code_label = Label.new()
+	code_label.text = "Connexion au serveur..."
+	code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	code_label.add_theme_font_size_override("font_size", 64)
+	code_label.add_theme_color_override("font_color", Color(1, 0.8, 0.2))
+	vbox.add_child(code_label)
+	
+	var sous_titre = Label.new()
+	sous_titre.text = "Scannez le QR Code ou entrez ce code sur le site"
+	sous_titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sous_titre.add_theme_font_size_override("font_size", 24)
+	vbox.add_child(sous_titre)
+	
+	joueurs_label = Label.new()
+	joueurs_label.text = "0 joueur(s) connecté(s)\n"
+	joueurs_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	joueurs_label.add_theme_font_size_override("font_size", 32)
+	joueurs_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	vbox.add_child(joueurs_label)
+	
+	var start_label = Label.new()
+	start_label.text = "\n[Appuyez sur ESPACE pour commencer la partie]"
+	start_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	start_label.add_theme_font_size_override("font_size", 24)
+	vbox.add_child(start_label)
+	
+	# Initialiser HTTPRequest pour télécharger le QR Code
+	http_request = HTTPRequest.new()
+	add_child(http_request)
+	http_request.request_completed.connect(_sur_qr_telecharge)
+
+func _sur_code_salle_recu(code: String) -> void:
+	code_label.text = code
+	var url_cible = "https://dookey-h1if.onrender.com/controller?code=" + code
+	var url_api = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + url_cible.uri_encode()
+	http_request.request(url_api)
+
+func _sur_qr_telecharge(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	if result == HTTPRequest.RESULT_SUCCESS and response_code == 200:
+		var image = Image.new()
+		var err = image.load_png_from_buffer(body)
+		if err == OK:
+			qr_texture.texture = ImageTexture.create_from_image(image)
+
+func _sur_joueur_rejoint(pseudo: String) -> void:
+	liste_joueurs.append(pseudo)
+	var liste_str = "\n".join(liste_joueurs)
+	joueurs_label.text = "%d joueur(s) connecté(s)\n%s" % [liste_joueurs.size(), liste_str]
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Affiche / cache la roue
 # ═══════════════════════════════════════════════════════════════════════════
 func _montrer_roue() -> void:
@@ -145,9 +239,17 @@ func _sur_lancer_roue_web() -> void:
 			noeud_roue.lancer_roue_depuis_web()
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Gestion du chrono temps réel
+# Gestion du chrono temps réel et de l'attente Lobby
 # ═══════════════════════════════════════════════════════════════════════════
 func _process(delta: float) -> void:
+	if est_en_lobby:
+		if Input.is_action_just_pressed("ui_accept"):
+			est_en_lobby = false
+			if is_instance_valid(lobby_layer):
+				lobby_layer.queue_free()
+			_afficher_tour()
+		return
+
 	if chrono_actif:
 		temps_chrono -= delta
 		if temps_chrono <= 0.0:

@@ -9,11 +9,13 @@ extends Node
 
 signal votes_recus(votes: Dictionary)
 signal lancer_roue_web()
+signal joueur_rejoint(pseudo: String)
+signal code_salle_recu(code: String)
 
 var _ws := WebSocketPeer.new()
 var est_connecte := false
 var URL := "ws://localhost:3000?clientType=game"
-var etat_courant : String = ""
+var etat_courant : String = "LOBBY_ATTENTE"
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -52,8 +54,16 @@ func _process(_delta: float) -> void:
 				est_connecte = false
 
 func _traiter_message(message: String) -> void:
+	if message.begins_with("ROOM_CREATED:"):
+		var code = message.substr(13).strip_edges()
+		code_salle_recu.emit(code)
+		
+	elif message.begins_with("PLAYER_JOINED:"):
+		var pseudo = message.substr(14).strip_edges()
+		joueur_rejoint.emit(pseudo)
+
 	# ── Format VOTES:1=3,2=5,6=1 ──────────────────────────────────────────
-	if message.begins_with("VOTES:"):
+	elif message.begins_with("VOTES:"):
 		var partie := message.substr(6)  # Tout après "VOTES:"
 		var votes  := {}
 		for entry in partie.split(","):
