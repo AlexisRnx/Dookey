@@ -1,4 +1,1 @@
-res://Scenes/game.tscn
-res://Scripts/roue.gd
-res://Scripts/game.gd
 res://Scripts/websocket_server.gd

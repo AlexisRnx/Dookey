@@ -15,6 +15,10 @@ run/main_scene="uid://bcd6nfk1an0rr"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+WebSocketServer="*res://Scripts/websocket_server.gd"
+
 [display]
 
 window/stretch/mode="canvas_items"
@@ -26,7 +30,3 @@ project/assembly_name="Dookey Ascension"
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
-
-[autoload]
-
-WebSocketServer="*res://Scripts/websocket_server.gd"

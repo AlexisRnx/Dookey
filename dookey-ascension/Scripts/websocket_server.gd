@@ -10,43 +10,46 @@ extends Node
 signal votes_recus(votes: Dictionary)
 signal lancer_roue_web()
 
-var _tcp_server := TCPServer.new()
-var _peers : Array[WebSocketPeer] = []
+var _ws := WebSocketPeer.new()
+var est_connecte := false
+var URL := "ws://localhost:3000?clientType=game"
 var etat_courant : String = ""
 
 func _ready() -> void:
-	var err := _tcp_server.listen(8080)
+	if OS.has_feature("web"):
+		var host = JavaScriptBridge.eval("window.location.host")
+		var protocol = JavaScriptBridge.eval("window.location.protocol == 'https:' ? 'wss:' : 'ws:'")
+		if host and protocol:
+			 URL = "%s//%s?clientType=game" % [protocol, host]
+			
+	var err := _ws.connect_to_url(URL)
 	if err != OK:
-		push_error("[WS Server] Impossible de démarrer sur le port 8080 : erreur %d" % err)
+		push_error("[WS Client] Impossible de se connecter au Node Serveur URL:", URL)
 		return
-	print("[WS Server] En écoute sur ws://localhost:8080")
+	print("[WS Client] Tentative de connexion à ", URL)
 
 func _process(_delta: float) -> void:
-	if _tcp_server.is_connection_available():
-		var tcp_conn := _tcp_server.take_connection()
-		var ws_peer := WebSocketPeer.new()
-		var err := ws_peer.accept_stream(tcp_conn)
-		if err == OK:
-			_peers.append(ws_peer)
-			print("[WS Server] Nouvelle connexion acceptée")
-			if etat_courant != "":
-				ws_peer.send_text(etat_courant)
+	_ws.poll()
+	var state := _ws.get_ready_state()
+	
+	match state:
+		WebSocketPeer.STATE_OPEN:
+			if not est_connecte:
+				print("[WS Client] Connecté avec succès au serveur Node !")
+				est_connecte = true
+				if etat_courant != "":
+					_ws.send_text(etat_courant)
 
-	for i in range(_peers.size() - 1, -1, -1):
-		var ws := _peers[i]
-		ws.poll()
-		var state := ws.get_ready_state()
-		
-		match state:
-			WebSocketPeer.STATE_OPEN:
-				while ws.get_available_packet_count() > 0:
-					var paquet := ws.get_packet()
-					var message := paquet.get_string_from_utf8().strip_edges()
-					print("[WS Server] Message reçu : ", message)
-					_traiter_message(message)
-			WebSocketPeer.STATE_CLOSED:
-				print("[WS Server] Connexion fermée")
-				_peers.remove_at(i)
+			while _ws.get_available_packet_count() > 0:
+				var paquet := _ws.get_packet()
+				var message := paquet.get_string_from_utf8().strip_edges()
+				print("[WS Serveur relayé] Message reçu : ", message)
+				_traiter_message(message)
+				
+		WebSocketPeer.STATE_CLOSED:
+			if est_connecte:
+				print("[WS Client] Connexion perdue.")
+				est_connecte = false
 
 func _traiter_message(message: String) -> void:
 	# ── Format VOTES:1=3,2=5,6=1 ──────────────────────────────────────────
@@ -76,10 +79,8 @@ func _traiter_message(message: String) -> void:
 	elif message == "LANCER":
 		lancer_roue_web.emit()
 
-# ── Envoie d'un message vers tous les clients Web connectés ───────────
+# ── Envoie d'un message vers le serveur Node (qui relayera à tous les téléphones)
 func envoyer_message(msg: String) -> void:
-	for i in range(_peers.size() - 1, -1, -1):
-		var ws := _peers[i]
-		if ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
-			ws.send_text(msg)
+	if _ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		_ws.send_text(msg)
 

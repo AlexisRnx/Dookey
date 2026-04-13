@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dookey Controller</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="status-bar" style="position: absolute; top: 10px; left: 10px; color: white; display: flex; align-items: center; gap: 8px;">
+        <span id="ws-status" style="display:inline-block; width:12px; height:12px; background:red; border-radius:50%;"></span>
+        <span id="ws-label" style="font-size: 0.9rem;">Déconnecté de Godot</span>
+    </div>
+    
+    <h2 id="nom-equipe-tour" style="position: absolute; width: 100%; text-align: center; top: 40px; color: #ffeb3b; margin: 0; z-index: 10; pointer-events: none;">En attente du jeu...</h2>
+
+    <div id="ecran-cliquable">
+        <div id="container-barre">
+            <div class="case-score" id="case-1">1</div>
+            <div class="case-score" id="case-2">2</div>
+            <div class="case-score" id="case-3">3</div>
+            <div class="case-score" id="case-4">4</div>
+            <div class="case-score" id="case-5">5</div>
+            <div class="case-score" id="case-6">6</div>
+            <div id="curseur"></div>
+        </div>
+        <p id="txt-info">CLIQUE POUR ARRÊTER</p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
