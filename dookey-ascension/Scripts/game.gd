@@ -74,8 +74,20 @@ func _ready() -> void:
 # Construit les noms d'équipes desde WebSocketServer.equipes
 # ═══════════════════════════════════════════════════════════════════════════
 func _construire_noms_equipes() -> void:
+	var groupes : Array = [[], [], [], []]
+	for pseudo in WebSocketServer.equipes:
+		var idx : int = WebSocketServer.equipes[pseudo]
+		if idx >= 0 and idx < 4:
+			groupes[idx].append(pseudo)
+	
 	for i in range(4):
-		noms_equipes[i] = WebSocketServer.NOMS_EQUIPES[i]
+		var membres = groupes[i]
+		if membres.is_empty():
+			noms_equipes[i] = WebSocketServer.NOMS_EQUIPES[i] # Fallback si vide
+		elif membres.size() == 1:
+			noms_equipes[i] = membres[0]  # Solo : affiche le pseudo directement
+		else:
+			noms_equipes[i] = ", ".join(membres)  # Plusieurs : "Alice, Bob"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # HUD  (CanvasLayer avec label + conteneur pour la roue)
@@ -260,16 +272,11 @@ func _plus_proche(depuis: Vector2i, liste: Array) -> Vector2i:
 # Déplacement case par case avec animation
 # ═══════════════════════════════════════════════════════════════════════════
 func _avancer_pion(nb: int) -> void:
+	en_deplacement = true
+
 	var data         : Dictionary = pions[tour_actuel]
 	var case_depart  : int = data["case"]
 	var case_arrivee : int = mini(case_depart + nb, parcours.size() - 1)
-	
-	if case_arrivee >= parcours.size()-1:
-		print(" %s a atteint l'arrivée !" % data["nom"])
-	else:
-		_appliquer_effet_case(data, case_arrivee) # <--- NOUVEAU
-	en_deplacement = false
-	en_deplacement = true
 
 	print("[%s] +%d → case %d/%d" % [data["nom"], nb, case_arrivee, parcours.size() - 1])
 
@@ -396,32 +403,3 @@ func _reprendre_tour() -> void:
 	WebSocketServer.etat_courant = msg
 	# Les manettes reconnectées verront "NOUVEAU_TOUR" et pourront revoter si elles reconnectent. 
 	WebSocketServer.envoyer_message(msg)
-
-# Nouvelle fonction pour gérer les cases spéciales
-func _appliquer_effet_case(data_pion: Dictionary, index_case: int) -> void:
-	var coord : Vector2i = parcours[index_case]
-	
-	# Exemple : vérifier si c'est une case "Piège" via les coordonnées de l'atlas
-	var atlas_coord = layer_cases.get_cell_atlas_coords(coord)
-	var ATLAS_PIEGE = Vector2i(5, 4) # Remplace par les vraies coordonnées de ta case piège
-	
-	if atlas_coord == ATLAS_PIEGE:
-		print("💀 Le pion %s est tombé sur un piège !" % data_pion["nom"])
-		
-		# --- LOGIQUE DU CHOIX DU JOUEUR ---
-		# Il te faut le pseudo du joueur à éliminer.
-		var pseudo_a_eliminer = _choisir_joueur_a_eliminer(data_pion)
-		
-		if pseudo_a_eliminer != "":
-			WebSocketServer.eliminer_joueur_physique(pseudo_a_eliminer)
-			# Optionnel : Afficher un message sur le HUD de Godot
-			print("Le joueur physique %s a été éliminé du jeu !" % pseudo_a_eliminer)
-
-# Fonction pour déterminer QUI éliminer
-func _choisir_joueur_a_eliminer(data_pion: Dictionary) -> String:
-	# C'est ici que tu dois définir ta logique.
-	# Par exemple, prendre un joueur au hasard dans l'équipe,
-	# ou le joueur qui a fait le pire vote.
-	
-	# /!\ Attention : Actuellement, game.gd ne stocke pas qui est dans quelle équipe.
-	return "PseudoDuJoueur" 

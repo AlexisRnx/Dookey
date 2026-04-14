@@ -8,18 +8,33 @@ var joueurs_titre_label: Label
 var joueurs_flow : HFlowContainer
 var liste_joueurs: Array[String] = []
 
+# Animation fond
+var bg_anim      : TextureRect
+var anim_frame   : int = 0
+var anim_dir     : int = 1  # +1 = vers 4, -1 = vers 0
+const NB_FRAMES  : int = 5  # frames 0..4
+
 func _ready() -> void:
-	# Création de l'interface graphique dynamique
-	var bg = ColorRect.new()
-	bg.color = Color(0.55, 0.82, 0.95, 1.0) # Bright Sky Blue wrapping the map
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	# Fond animé ping-pong (pixil-frame-0.png .. pixil-frame-4.png)
+	bg_anim = TextureRect.new()
+	bg_anim.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg_anim.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg_anim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_charger_frame(0)
+	add_child(bg_anim)
+	
+	# Timer d'animation : 8 fps ≈ 0.125s par frame
+	var timer = Timer.new()
+	timer.wait_time = 0.125
+	timer.autostart = true
+	timer.timeout.connect(_avancer_frame_anim)
+	add_child(timer)
 	
 	var margin = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_top", 20)
 	margin.add_theme_constant_override("margin_bottom", 20)
-	bg.add_child(margin)
+	bg_anim.add_child(margin)
 	
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -299,3 +314,26 @@ func _sur_joueur_quitte(pseudo: String) -> void:
 	if node:
 		node.queue_free()
 		joueurs_flow.remove_child(node)
+
+# ─── Animation fond ping-pong ───────────────────────────────────────────────
+func _charger_frame(idx: int) -> void:
+	var path = "res://Assets/pixil-frame-%d.png" % idx
+	var tex = load(path)
+	if tex:
+		bg_anim.texture = tex
+	else:
+		# Frame manquante : fond de secours bleu ciel
+		var fallback = ColorRect.new()
+		fallback.color = Color(0.55, 0.82, 0.95)
+		print("[lobby.gd] Frame manquante : ", path)
+
+func _avancer_frame_anim() -> void:
+	anim_frame += anim_dir
+	# Rebond : on inverse la direction aux extrémités
+	if anim_frame >= NB_FRAMES - 1:
+		anim_frame = NB_FRAMES - 1
+		anim_dir = -1
+	elif anim_frame <= 0:
+		anim_frame = 0
+		anim_dir = 1
+	_charger_frame(anim_frame)

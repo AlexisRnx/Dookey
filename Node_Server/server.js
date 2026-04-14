@@ -6,6 +6,9 @@ const http = require('http');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Servir tous les fichiers statiques du dossier public/ (images, etc.)
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Serve the controller under the URL "/controller"
 app.use('/controller', express.static(path.join(__dirname, 'public/controller')));
 app.get('/controller', (req, res) => {
