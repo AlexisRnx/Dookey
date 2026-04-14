@@ -10,8 +10,18 @@ var liste_joueurs: Array[String] = []
 
 func _ready() -> void:
 	# Création de l'interface graphique dynamique
-	var bg = ColorRect.new()
-	bg.color = Color(0.96, 0.96, 0.97, 1.0)
+	var bg = TextureRect.new()
+	var tex_fond = load("res://Assets/fond1.2.png")
+	if tex_fond:
+		bg.texture = tex_fond
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVER
+	else:
+		var fallback = ColorRect.new()
+		fallback.color = Color(0.05, 0.05, 0.1, 1.0)
+		fallback.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(fallback)
+		
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	
@@ -26,12 +36,27 @@ func _ready() -> void:
 	vbox.add_theme_constant_override("separation", 10)
 	margin.add_child(vbox)
 	
+	var entete = HBoxContainer.new()
+	entete.alignment = BoxContainer.ALIGNMENT_CENTER
+	entete.add_theme_constant_override("separation", 20)
+	
+	var logo = TextureRect.new()
+	var tex_logo = load("res://Assets/image-removebg-preview (1).png")
+	if tex_logo:
+		logo.texture = tex_logo
+		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		logo.custom_minimum_size = Vector2(100, 100)
+		entete.add_child(logo)
+	
 	var titre = Label.new()
 	titre.text = "SALLE D'ATTENTE"
 	titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	titre.add_theme_font_size_override("font_size", 32)
-	titre.add_theme_color_override("font_color", Color(0.15, 0.15, 0.15))
-	vbox.add_child(titre)
+	titre.add_theme_font_size_override("font_size", 42)
+	titre.add_theme_color_override("font_color", Color.WHITE)
+	entete.add_child(titre)
+	
+	vbox.add_child(entete)
 	
 	qr_texture = TextureRect.new()
 	qr_texture.custom_minimum_size = Vector2(160, 160)
@@ -43,28 +68,29 @@ func _ready() -> void:
 	code_label.text = "Connexion..."
 	code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	code_label.add_theme_font_size_override("font_size", 42)
-	code_label.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2)) # Dark distinct text
+	code_label.add_theme_font_size_override("font_size", 42)
+	code_label.add_theme_color_override("font_color", Color(1, 0.8, 0.2)) # Gold distinct text
 	vbox.add_child(code_label)
 	
 	lien_label = Label.new()
 	lien_label.text = ""
 	lien_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lien_label.add_theme_font_size_override("font_size", 20)
-	lien_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+	lien_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
 	vbox.add_child(lien_label)
 	
 	var sous_titre = Label.new()
 	sous_titre.text = "Scannez le QR Code ou entrez l'adresse et le code sur votre navigateur"
 	sous_titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sous_titre.add_theme_font_size_override("font_size", 16)
-	sous_titre.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	sous_titre.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
 	vbox.add_child(sous_titre)
 	
 	joueurs_titre_label = Label.new()
 	joueurs_titre_label.text = "0 joueur(s) connecté(s)\n"
 	joueurs_titre_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	joueurs_titre_label.add_theme_font_size_override("font_size", 24)
-	joueurs_titre_label.add_theme_color_override("font_color", Color(0.15, 0.45, 0.75))
+	joueurs_titre_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
 	vbox.add_child(joueurs_titre_label)
 	
 	var scroll = ScrollContainer.new()
@@ -86,7 +112,7 @@ func _ready() -> void:
 	btn_start.add_theme_font_size_override("font_size", 22)
 	
 	var btn_style = StyleBoxFlat.new()
-	btn_style.bg_color = Color(0.9, 0.3, 0.3)
+	btn_style.bg_color = Color(0.8, 0.5, 0.1) # Dookey Gold
 	btn_style.corner_radius_top_left = 6
 	btn_style.corner_radius_top_right = 6
 	btn_style.corner_radius_bottom_left = 6
@@ -97,7 +123,7 @@ func _ready() -> void:
 	btn_start.add_theme_color_override("font_color", Color.WHITE)
 	
 	var btn_hover = btn_style.duplicate()
-	btn_hover.bg_color = Color(0.95, 0.4, 0.4)
+	btn_hover.bg_color = Color(1.0, 0.6, 0.2)
 	btn_start.add_theme_stylebox_override("hover", btn_hover)
 	
 	btn_start.pressed.connect(_lancer_restauration)
@@ -164,22 +190,22 @@ func _sur_joueur_rejoint(pseudo: String) -> void:
 	var pan = PanelContainer.new()
 	pan.name = "Joueur_" + pseudo.validate_node_name()
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color.WHITE
+	style.bg_color = Color(0, 0, 0, 0.6) # Dark transparent glass
 	style.border_width_bottom = 2
 	style.border_width_top = 2
 	style.border_width_left = 2
 	style.border_width_right = 2
-	style.border_color = Color(0.85, 0.85, 0.85)
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
-	style.set_content_margin_all(10)
+	style.border_color = Color(1, 0.8, 0.2, 0.8) # Gold glow
+	style.corner_radius_top_left = 12
+	style.corner_radius_top_right = 12
+	style.corner_radius_bottom_left = 12
+	style.corner_radius_bottom_right = 12
+	style.set_content_margin_all(12)
 	pan.add_theme_stylebox_override("panel", style)
 	
 	var lbl = Label.new()
 	lbl.text = pseudo
-	lbl.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2))
+	lbl.add_theme_color_override("font_color", Color(1, 1, 1))
 	lbl.add_theme_font_size_override("font_size", 20)
 	pan.add_child(lbl)
 	
