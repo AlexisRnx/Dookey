@@ -403,7 +403,7 @@ func _appliquer_effet_case(data_pion: Dictionary, index_case: int) -> void:
 	
 	# Exemple : vérifier si c'est une case "Piège" via les coordonnées de l'atlas
 	var atlas_coord = layer_cases.get_cell_atlas_coords(coord)
-	var ATLAS_PIEGE = Vector2i(6, 5) # Remplace par les vraies coordonnées de ta case piège
+	var ATLAS_PIEGE = Vector2i(5, 4) # Remplace par les vraies coordonnées de ta case piège
 	
 	if atlas_coord == ATLAS_PIEGE:
 		print("💀 Le pion %s est tombé sur un piège !" % data_pion["nom"])
