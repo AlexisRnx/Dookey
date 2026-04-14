@@ -1,2 +1,3 @@
-res://Scripts/lobby.gd
-res://Scripts/websocket_server.gd
+res://Scenes/game.tscn
+res://Scenes/roue.tscn
+res://Scenes/lobby.tscn
