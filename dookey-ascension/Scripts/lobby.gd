@@ -11,7 +11,7 @@ var liste_joueurs: Array[String] = []
 func _ready() -> void:
 	# Création de l'interface graphique dynamique
 	var bg = ColorRect.new()
-	bg.color = Color(0.05, 0.05, 0.1, 1.0)
+	bg.color = Color(0.96, 0.96, 0.97, 1.0)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	
@@ -30,6 +30,7 @@ func _ready() -> void:
 	titre.text = "SALLE D'ATTENTE"
 	titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	titre.add_theme_font_size_override("font_size", 32)
+	titre.add_theme_color_override("font_color", Color(0.15, 0.15, 0.15))
 	vbox.add_child(titre)
 	
 	qr_texture = TextureRect.new()
@@ -42,27 +43,28 @@ func _ready() -> void:
 	code_label.text = "Connexion..."
 	code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	code_label.add_theme_font_size_override("font_size", 42)
-	code_label.add_theme_color_override("font_color", Color(1, 0.8, 0.2))
+	code_label.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2)) # Dark distinct text
 	vbox.add_child(code_label)
 	
 	lien_label = Label.new()
 	lien_label.text = ""
 	lien_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lien_label.add_theme_font_size_override("font_size", 20)
-	lien_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	lien_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	vbox.add_child(lien_label)
 	
 	var sous_titre = Label.new()
 	sous_titre.text = "Scannez le QR Code ou entrez l'adresse et le code sur votre navigateur"
 	sous_titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sous_titre.add_theme_font_size_override("font_size", 16)
+	sous_titre.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	vbox.add_child(sous_titre)
 	
 	joueurs_titre_label = Label.new()
 	joueurs_titre_label.text = "0 joueur(s) connecté(s)\n"
 	joueurs_titre_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	joueurs_titre_label.add_theme_font_size_override("font_size", 24)
-	joueurs_titre_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	joueurs_titre_label.add_theme_color_override("font_color", Color(0.15, 0.45, 0.75))
 	vbox.add_child(joueurs_titre_label)
 	
 	var scroll = ScrollContainer.new()
@@ -79,11 +81,31 @@ func _ready() -> void:
 	scroll.add_child(joueurs_flow)
 	vbox.add_child(scroll)
 	
-	var start_label = Label.new()
-	start_label.text = "\n[Appuyez sur ESPACE pour lancer le plateau]"
-	start_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	start_label.add_theme_font_size_override("font_size", 18)
-	vbox.add_child(start_label)
+	var btn_start = Button.new()
+	btn_start.text = "COMMENCER LA PARTIE"
+	btn_start.add_theme_font_size_override("font_size", 22)
+	
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = Color(0.9, 0.3, 0.3)
+	btn_style.corner_radius_top_left = 6
+	btn_style.corner_radius_top_right = 6
+	btn_style.corner_radius_bottom_left = 6
+	btn_style.corner_radius_bottom_right = 6
+	btn_style.set_content_margin_all(15)
+	
+	btn_start.add_theme_stylebox_override("normal", btn_style)
+	btn_start.add_theme_color_override("font_color", Color.WHITE)
+	
+	var btn_hover = btn_style.duplicate()
+	btn_hover.bg_color = Color(0.95, 0.4, 0.4)
+	btn_start.add_theme_stylebox_override("hover", btn_hover)
+	
+	btn_start.pressed.connect(_lancer_restauration)
+	btn_start.custom_minimum_size = Vector2(300, 0)
+	
+	var btn_container = CenterContainer.new()
+	btn_container.add_child(btn_start)
+	vbox.add_child(btn_container)
 	
 	# Initialiser HTTPRequest pour télécharger le QR Code
 	http_request = HTTPRequest.new()
@@ -108,11 +130,6 @@ func _ready() -> void:
 
 func _lancer_restauration() -> void:
 	get_tree().change_scene_to_file("res://Scenes/game.tscn")
-
-func _process(_delta: float) -> void:
-	if Input.is_action_just_pressed("ui_accept"):
-		# Destruction du lobby et lancement du vrai jeu
-		get_tree().change_scene_to_file("res://Scenes/game.tscn")
 
 func _sur_code_salle_recu(code: String) -> void:
 	code_label.text = code
@@ -147,16 +164,22 @@ func _sur_joueur_rejoint(pseudo: String) -> void:
 	var pan = PanelContainer.new()
 	pan.name = "Joueur_" + pseudo.validate_node_name()
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.2, 0.3, 0.5, 0.8)
-	style.corner_radius_top_left = 10
-	style.corner_radius_top_right = 10
-	style.corner_radius_bottom_left = 10
-	style.corner_radius_bottom_right = 10
+	style.bg_color = Color.WHITE
+	style.border_width_bottom = 2
+	style.border_width_top = 2
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_color = Color(0.85, 0.85, 0.85)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
 	style.set_content_margin_all(10)
 	pan.add_theme_stylebox_override("panel", style)
 	
 	var lbl = Label.new()
 	lbl.text = pseudo
+	lbl.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2))
 	lbl.add_theme_font_size_override("font_size", 20)
 	pan.add_child(lbl)
 	
