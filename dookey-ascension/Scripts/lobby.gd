@@ -3,7 +3,9 @@ extends Control
 var qr_texture   : TextureRect
 var http_request : HTTPRequest
 var code_label   : Label
-var joueurs_label: Label
+var lien_label   : Label
+var joueurs_titre_label: Label
+var joueurs_flow : HFlowContainer
 var liste_joueurs: Array[String] = []
 
 func _ready() -> void:
@@ -40,18 +42,32 @@ func _ready() -> void:
 	code_label.add_theme_color_override("font_color", Color(1, 0.8, 0.2))
 	vbox.add_child(code_label)
 	
+	lien_label = Label.new()
+	lien_label.text = ""
+	lien_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lien_label.add_theme_font_size_override("font_size", 22)
+	lien_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	vbox.add_child(lien_label)
+	
 	var sous_titre = Label.new()
-	sous_titre.text = "Scannez le QR Code ou entrez ce code sur le site"
+	sous_titre.text = "Scannez le QR Code ou entrez l'adresse et le code sur votre navigateur"
 	sous_titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sous_titre.add_theme_font_size_override("font_size", 18)
 	vbox.add_child(sous_titre)
 	
-	joueurs_label = Label.new()
-	joueurs_label.text = "0 joueur(s) connecté(s)\n"
-	joueurs_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	joueurs_label.add_theme_font_size_override("font_size", 24)
-	joueurs_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
-	vbox.add_child(joueurs_label)
+	joueurs_titre_label = Label.new()
+	joueurs_titre_label.text = "0 joueur(s) connecté(s)\n"
+	joueurs_titre_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	joueurs_titre_label.add_theme_font_size_override("font_size", 24)
+	joueurs_titre_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	vbox.add_child(joueurs_titre_label)
+	
+	joueurs_flow = HFlowContainer.new()
+	joueurs_flow.alignment = FlowContainer.ALIGNMENT_CENTER
+	joueurs_flow.custom_minimum_size = Vector2(600, 0)
+	joueurs_flow.add_theme_constant_override("h_separation", 15)
+	joueurs_flow.add_theme_constant_override("v_separation", 15)
+	vbox.add_child(joueurs_flow)
 	
 	var start_label = Label.new()
 	start_label.text = "\n[Appuyez sur ESPACE pour lancer le plateau]"
@@ -97,6 +113,8 @@ func _sur_code_salle_recu(code: String) -> void:
 		if host and protocol:
 			base_url = protocol + "//" + host
 			
+	lien_label.text = "Adresse : " + base_url + "/controller"
+			
 	var url_cible = base_url + "/controller?code=" + code
 	var url_api = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + url_cible.uri_encode()
 	http_request.request(url_api)
@@ -110,5 +128,21 @@ func _sur_qr_telecharge(result: int, response_code: int, _headers: PackedStringA
 
 func _sur_joueur_rejoint(pseudo: String) -> void:
 	liste_joueurs.append(pseudo)
-	var liste_str = "\n".join(liste_joueurs)
-	joueurs_label.text = "%d joueur(s) connecté(s)\n%s" % [liste_joueurs.size(), liste_str]
+	joueurs_titre_label.text = "%d joueur(s) connecté(s)\n" % liste_joueurs.size()
+	
+	var pan = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.3, 0.5, 0.8)
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.set_content_margin_all(10)
+	pan.add_theme_stylebox_override("panel", style)
+	
+	var lbl = Label.new()
+	lbl.text = pseudo
+	lbl.add_theme_font_size_override("font_size", 20)
+	pan.add_child(lbl)
+	
+	joueurs_flow.add_child(pan)
