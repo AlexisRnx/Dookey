@@ -1,0 +1,16 @@
+# Godot cache
+.godot/
+
+# Godot export presets (contient des chemins locaux)
+export_presets.cfg
+
+# Node.js
+Node_Server/node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
