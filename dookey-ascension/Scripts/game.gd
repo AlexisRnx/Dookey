@@ -391,3 +391,43 @@ func _reprendre_tour() -> void:
 	WebSocketServer.etat_courant = msg
 	# Les manettes reconnectées verront "NOUVEAU_TOUR" et pourront revoter si elles reconnectent. 
 	WebSocketServer.envoyer_message(msg)
+
+
+# Ajoute ceci à la fin de ta fonction _avancer_pion(nb: int) :
+# ...
+# if case_arrivee >= parcours.size() - 1:
+#     print("🎉 %s a atteint l'arrivée !" % data["nom"])
+# else:
+#     _appliquer_effet_case(data, case_arrivee) # <--- NOUVEAU
+#
+# en_deplacement = false
+# ...
+
+# Nouvelle fonction pour gérer les cases spéciales
+func _appliquer_effet_case(data_pion: Dictionary, index_case: int) -> void:
+	var coord : Vector2i = parcours[index_case]
+	
+	# Exemple : vérifier si c'est une case "Piège" via les coordonnées de l'atlas
+	var atlas_coord = layer_cases.get_cell_atlas_coords(coord)
+	var ATLAS_PIEGE = Vector2i(6, 5) # Remplace par les vraies coordonnées de ta case piège
+	
+	if atlas_coord == ATLAS_PIEGE:
+		print("💀 Le pion %s est tombé sur un piège !" % data_pion["nom"])
+		
+		# --- LOGIQUE DU CHOIX DU JOUEUR ---
+		# Il te faut le pseudo du joueur à éliminer.
+		var pseudo_a_eliminer = _choisir_joueur_a_eliminer(data_pion)
+		
+		if pseudo_a_eliminer != "":
+			WebSocketServer.eliminer_joueur_physique(pseudo_a_eliminer)
+			# Optionnel : Afficher un message sur le HUD de Godot
+			print("Le joueur physique %s a été éliminé du jeu !" % pseudo_a_eliminer)
+
+# Fonction pour déterminer QUI éliminer
+func _choisir_joueur_a_eliminer(data_pion: Dictionary) -> String:
+	# C'est ici que tu dois définir ta logique.
+	# Par exemple, prendre un joueur au hasard dans l'équipe,
+	# ou le joueur qui a fait le pire vote.
+	
+	# /!\ Attention : Actuellement, game.gd ne stocke pas qui est dans quelle équipe.
+	return "PseudoDuJoueur" 

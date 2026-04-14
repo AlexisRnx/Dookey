@@ -163,3 +163,10 @@ func envoyer_message(msg: String) -> void:
 
 func verrouiller_salle() -> void:
 	envoyer_message("LOCK_ROOM")
+
+# Envoie l'ordre au serveur Node.js d'éliminer un joueur physique
+func eliminer_joueur_physique(pseudo: String) -> void:
+	if est_connecte:
+		print("[WS Client] Ordre d'élimination envoyé pour : ", pseudo)
+		# Le serveur Node devra écouter ce message et fermer la connexion du joueur
+		envoyer_message("KICK:" + pseudo) 
