@@ -74,20 +74,8 @@ func _ready() -> void:
 # Construit les noms d'équipes desde WebSocketServer.equipes
 # ═══════════════════════════════════════════════════════════════════════════
 func _construire_noms_equipes() -> void:
-	var groupes : Array = [[], [], [], []]
-	for pseudo in WebSocketServer.equipes:
-		var idx : int = WebSocketServer.equipes[pseudo]
-		if idx >= 0 and idx < 4:
-			groupes[idx].append(pseudo)
-	
 	for i in range(4):
-		var membres = groupes[i]
-		if membres.is_empty():
-			noms_equipes[i] = WebSocketServer.NOMS_EQUIPES[i] # Fallback si vide
-		elif membres.size() == 1:
-			noms_equipes[i] = membres[0]  # Solo : affiche le pseudo directement
-		else:
-			noms_equipes[i] = ", ".join(membres)  # Plusieurs : "Alice, Bob"
+		noms_equipes[i] = WebSocketServer.NOMS_EQUIPES[i]
 
 # ═══════════════════════════════════════════════════════════════════════════
 # HUD  (CanvasLayer avec label + conteneur pour la roue)
