@@ -180,14 +180,21 @@
     <audio id="bgm" src="music/Tikolin%20Purre.mp3" loop autoplay></audio>
 
     <script>
-        // Lancer la musique au premier clic (sécurité navigateur)
-        document.body.addEventListener('click', () => {
-            const bgm = document.getElementById('bgm');
-            if (bgm.paused) {
-                bgm.volume = 0.5; // Met le volume à 50%
-                bgm.play().catch(e => console.log("Autoplay bloqué, nécessite un clic.", e));
-            }
-        }, { once: true });
+        const bgm = document.getElementById('bgm');
+        bgm.volume = 0.15; // Baisse le volume à 15% pour qu'il soit discret en fond
+
+        // Tentative agressive de lancer la musique automatiquement dès l'arrivée
+        let playAttempt = bgm.play();
+
+        if (playAttempt !== undefined) {
+            playAttempt.catch(error => {
+                // Si le navigateur (Chrome/Edge) bloque la musique pour des raisons de sécurité,
+                // on attend un clic caché n'importe où sur la page.
+                document.body.addEventListener('click', () => {
+                    bgm.play();
+                }, { once: true });
+            });
+        }
     </script>
 </body>
 </html>
