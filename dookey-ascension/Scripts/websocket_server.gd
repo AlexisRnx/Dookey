@@ -20,6 +20,50 @@ var URL := "wss://dookey-h1if.onrender.com/?clientType=game"
 var etat_courant : String = "LOBBY_ATTENTE"
 var code_salle_actuel : String = ""
 
+# Équipes : Dict { pseudo: String -> index_equipe: int (0-3) }
+var equipes : Dictionary = {}
+
+# Couleurs des 4 équipes (correspond aux sprite_0..3)
+const COULEURS_EQUIPES = [
+	Color(0.72, 0.0, 0.0),   # Rouge  - sprite_0
+	Color(0.25, 0.31, 0.56), # Bleu   - sprite_1
+	Color(0.82, 0.93, 0.26), # Lime   - sprite_2
+	Color(0.07, 0.76, 0.22), # Vert   - sprite_3
+]
+const NOMS_EQUIPES = ["Équipe Rouge", "Équipe Bleue", "Équipe Lime", "Équipe Verte"]
+
+# Distribue les joueurs en 4 équipes équilibrées de façon aléatoire
+func assigner_equipes(joueurs: Array) -> void:
+	equipes.clear()
+	if joueurs.is_empty():
+		return
+	
+	var liste = joueurs.duplicate()
+	liste.shuffle()  # Mélange l'ordre des joueurs
+	
+	var nb = liste.size()
+	var base = nb / 4  # Minimum par équipe
+	var reste = nb % 4  # Joueurs en trop
+	
+	# Créer les slots : base fois chaque équipe
+	var slots : Array[int] = []
+	for equipe_idx in range(4):
+		for _j in range(base):
+			slots.append(equipe_idx)
+	
+	# Ajouter les restes sur des équipes tirées au hasard (sans doublon)
+	var equipes_pour_reste = [0, 1, 2, 3]
+	equipes_pour_reste.shuffle()
+	for i in range(reste):
+		slots.append(equipes_pour_reste[i])
+	
+	# Mélanger les slots → aucune équipe n'est favorisée
+	slots.shuffle()
+	
+	# Assigner chaque joueur à son slot
+	for i in range(liste.size()):
+		equipes[liste[i]] = slots[i]
+
 func _ready() -> void:
 	if OS.has_feature("web"):
 		var host = JavaScriptBridge.eval("window.location.host")

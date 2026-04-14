@@ -19,7 +19,7 @@ var tour_actuel    : int  = 0
 var en_deplacement : bool = false
 var est_restauration : bool = false
 
-var noms_equipes := ["Équipe 1", "Équipe 2", "Équipe 3", "Équipe 4"]
+var noms_equipes : Array[String] = ["Équipe 1", "Équipe 2", "Équipe 3", "Équipe 4"]
 
 # HUD
 var hud_layer    : CanvasLayer
@@ -48,6 +48,9 @@ func _ready() -> void:
 		$Equipes/Pion4,
 	]
 
+	# Construire les noms d'équipes depuis les assignations WebSocketServer
+	_construire_noms_equipes()
+	
 	for i in range(noeuds.size()):
 		var pion_node: Node2D = noeuds[i]
 		var cam := _obtenir_ou_creer_camera(pion_node, i == 0)
@@ -66,6 +69,25 @@ func _ready() -> void:
 	_mettre_a_jour_hud()
 	
 	WebSocketServer.verrouiller_salle()
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Construit les noms d'équipes desde WebSocketServer.equipes
+# ═══════════════════════════════════════════════════════════════════════════
+func _construire_noms_equipes() -> void:
+	var groupes : Array = [[], [], [], []]
+	for pseudo in WebSocketServer.equipes:
+		var idx : int = WebSocketServer.equipes[pseudo]
+		if idx >= 0 and idx < 4:
+			groupes[idx].append(pseudo)
+	
+	for i in range(4):
+		var membres = groupes[i]
+		if membres.is_empty():
+			noms_equipes[i] = WebSocketServer.NOMS_EQUIPES[i] # Fallback si vide
+		elif membres.size() == 1:
+			noms_equipes[i] = membres[0]  # Solo : affiche le pseudo directement
+		else:
+			noms_equipes[i] = ", ".join(membres)  # Plusieurs : "Alice, Bob"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # HUD  (CanvasLayer avec label + conteneur pour la roue)

@@ -207,6 +207,7 @@ func _ready() -> void:
 			call_deferred("_lancer_restauration")
 
 func _lancer_restauration() -> void:
+	WebSocketServer.assigner_equipes(liste_joueurs)
 	get_tree().change_scene_to_file("res://Scenes/game.tscn")
 
 func _sur_code_salle_recu(code: String) -> void:
@@ -255,6 +256,10 @@ func _sur_joueur_rejoint(pseudo: String) -> void:
 	style.set_content_margin_all(12)
 	pan.add_theme_stylebox_override("panel", style)
 	
+	var vb = VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 2)
+	pan.add_child(vb)
+	
 	var lbl = Label.new()
 	lbl.text = pseudo
 	lbl.add_theme_color_override("font_color", Color.WHITE)
@@ -263,7 +268,18 @@ func _sur_joueur_rejoint(pseudo: String) -> void:
 	lbl_set.outline_size = 6
 	lbl_set.outline_color = Color(0.4, 0.2, 0.05)
 	lbl.label_settings = lbl_set
-	pan.add_child(lbl)
+	vb.add_child(lbl)
+	
+	# Badge équipe (affiché si équipes déjà assignées)
+	var badge = Label.new()
+	badge.name = "Badge"
+	badge.text = "En attente..."
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var badge_set = LabelSettings.new()
+	badge_set.font_size = 14
+	badge_set.font_color = Color(0.5, 0.35, 0.2)
+	badge.label_settings = badge_set
+	vb.add_child(badge)
 	
 	joueurs_flow.add_child(pan)
 
