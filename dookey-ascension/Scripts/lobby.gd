@@ -62,12 +62,18 @@ func _ready() -> void:
 	joueurs_titre_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
 	vbox.add_child(joueurs_titre_label)
 	
+	var scroll = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(650, 160)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	
 	joueurs_flow = HFlowContainer.new()
 	joueurs_flow.alignment = FlowContainer.ALIGNMENT_CENTER
-	joueurs_flow.custom_minimum_size = Vector2(600, 0)
+	joueurs_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	joueurs_flow.add_theme_constant_override("h_separation", 15)
 	joueurs_flow.add_theme_constant_override("v_separation", 15)
-	vbox.add_child(joueurs_flow)
+	
+	scroll.add_child(joueurs_flow)
+	vbox.add_child(scroll)
 	
 	var start_label = Label.new()
 	start_label.text = "\n[Appuyez sur ESPACE pour lancer le plateau]"
@@ -83,6 +89,7 @@ func _ready() -> void:
 	# Écoute des signaux du Websocket principal
 	WebSocketServer.code_salle_recu.connect(_sur_code_salle_recu)
 	WebSocketServer.joueur_rejoint.connect(_sur_joueur_rejoint)
+	WebSocketServer.joueur_quitte.connect(_sur_joueur_quitte)
 	
 	# Si le Websocket s'était déjà connecté (hyper rapide), on interroge le code directement !
 	if WebSocketServer.code_salle_actuel != "":
@@ -146,3 +153,15 @@ func _sur_joueur_rejoint(pseudo: String) -> void:
 	pan.add_child(lbl)
 	
 	joueurs_flow.add_child(pan)
+
+func _sur_joueur_quitte(pseudo: String) -> void:
+	if pseudo in liste_joueurs:
+		liste_joueurs.erase(pseudo)
+		joueurs_titre_label.text = "%d joueur(s) connecté(s)\n" % liste_joueurs.size()
+		
+		for child in joueurs_flow.get_children():
+			if child is PanelContainer:
+				var lbl = child.get_child(0) as Label
+				if lbl and lbl.text == pseudo:
+					child.queue_free()
+					break

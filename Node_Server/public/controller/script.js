@@ -110,6 +110,12 @@ function initWebSocket(code, pseudo) {
                 errorLabel.innerText = "La partie a déjà commencé, entrée refusée !";
                 errorLabel.style.display = "block";
                 socket.close();
+            } else if (data === "ERROR:PSEUDO_TAKEN") {
+                sessionStorage.removeItem('dookeyRoomCode');
+                sessionStorage.removeItem('dookeyPseudo');
+                errorLabel.innerText = "Ce pseudo est déjà utilisé par un autre joueur !";
+                errorLabel.style.display = "block";
+                socket.close();
             }
             return;
         }

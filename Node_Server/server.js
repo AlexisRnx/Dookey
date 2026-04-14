@@ -75,7 +75,7 @@ wss.on('connection', (ws, req) => {
                 roomCode = generateRoomCode();
             }
             console.log(`[Serveur] Le jeu Godot est connecté ! Création de la salle : ${roomCode}`);
-            rooms.set(roomCode, { gameWs: ws, controllers: new Set(), isLocked: false, pseudos: new Set() });
+            rooms.set(roomCode, { gameWs: ws, controllers: new Set(), isLocked: false, pseudos: new Set(), connectedPseudos: new Set() });
             ws.send(`ROOM_CREATED:${roomCode}`);
         }
 
@@ -123,6 +123,16 @@ wss.on('connection', (ws, req) => {
         const upperCode = roomCode.toUpperCase();
         const room = rooms.get(upperCode);
         
+        // Empêcher d'avoir 2 fois le même pseudo EN MÊME TEMPS
+        if (room.connectedPseudos.has(pseudo)) {
+            console.log(`[Serveur] Rejet : Le pseudo ${pseudo} est déjà connecté dans ${upperCode}`);
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send("ERROR:PSEUDO_TAKEN");
+                ws.close();
+            }
+            return;
+        }
+        
         if (room.isLocked && !room.pseudos.has(pseudo)) {
             console.log(`[Serveur] Rejet : Tentative de rejoindre la salle verrouillée ${upperCode}`);
             if (ws.readyState === WebSocket.OPEN) {
@@ -133,6 +143,7 @@ wss.on('connection', (ws, req) => {
         }
 
         room.pseudos.add(pseudo);
+        room.connectedPseudos.add(pseudo);
         console.log(`[Serveur] Le joueur ${pseudo} a rejoint la salle ${upperCode}`);
         room.controllers.add(ws);
         
@@ -157,7 +168,18 @@ wss.on('connection', (ws, req) => {
         ws.on('close', () => {
             console.log(`[Serveur] Le joueur ${pseudo} s'est déconnecté de la salle ${upperCode}.`);
             if (rooms.has(upperCode)) {
-                rooms.get(upperCode).controllers.delete(ws);
+                const r = rooms.get(upperCode);
+                r.controllers.delete(ws);
+                r.connectedPseudos.delete(pseudo);
+                
+                // Si la partie n'a pas encore commencé, on supprime de la liste globale
+                // et on prévient Godot pour retirer sa case de l'écran.
+                if (!r.isLocked) {
+                    r.pseudos.delete(pseudo);
+                    if (r.gameWs && r.gameWs.readyState === WebSocket.OPEN) {
+                        r.gameWs.send(`PLAYER_LEFT:${pseudo}`);
+                    }
+                }
             }
         });
     }

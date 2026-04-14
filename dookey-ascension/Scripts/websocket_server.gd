@@ -10,6 +10,7 @@ extends Node
 signal votes_recus(votes: Dictionary)
 signal lancer_roue_web()
 signal joueur_rejoint(pseudo: String)
+signal joueur_quitte(pseudo: String)
 signal code_salle_recu(code: String)
 
 var _ws := WebSocketPeer.new()
@@ -79,6 +80,10 @@ func _traiter_message(message: String) -> void:
 	elif message.begins_with("PLAYER_JOINED:"):
 		var pseudo = message.substr(14).strip_edges()
 		joueur_rejoint.emit(pseudo)
+		
+	elif message.begins_with("PLAYER_LEFT:"):
+		var pseudo = message.substr(12).strip_edges()
+		joueur_quitte.emit(pseudo)
 
 	# ── Format VOTES:1=3,2=5,6=1 ──────────────────────────────────────────
 	elif message.begins_with("VOTES:"):
