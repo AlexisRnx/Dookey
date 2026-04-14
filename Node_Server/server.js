@@ -113,6 +113,14 @@ wss.on('connection', (ws, req) => {
                         }
                     });
                     console.log(`[Serveur] Équipes enregistrées pour ${roomCode}:`, Object.fromEntries(room.equipes));
+                    
+                    // Envoyer à chaque controller son équipe personnelle
+                    for (const [ctrlWs, ctrlPseudo] of room.controllerMap || new Map()) {
+                        const teamIdx = room.equipes.get(ctrlPseudo);
+                        if (ctrlWs.readyState === WebSocket.OPEN && teamIdx !== undefined) {
+                            ctrlWs.send(`VOTRE_EQUIPE:${teamIdx}`);
+                        }
+                    }
                     return; // Ne pas broadcaster aux controllers
                 }
 

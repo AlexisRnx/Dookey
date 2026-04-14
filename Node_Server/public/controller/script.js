@@ -36,6 +36,17 @@ const vitesse = 1.5;
 const curseur = document.getElementById('curseur');
 const cases = document.querySelectorAll('.case-score');
 
+// Équipes (alignées avec COULEURS_EQUIPES dans websocket_server.gd)
+const EQUIPES_COULEURS = ['#b80000', '#414e8e', '#d2ec42', '#12c337'];
+const EQUIPES_NOMS     = ['Équipe Rouge 🔴', 'Équipe Bleue 🔵', 'Équipe Lime 🟡', 'Équipe Verte 🟢'];
+
+function afficherBadgeEquipe(idx) {
+    const badge = document.getElementById('badge-equipe');
+    badge.innerText = EQUIPES_NOMS[idx] || ('Équipe ' + (idx + 1));
+    badge.style.background = EQUIPES_COULEURS[idx] || '#555';
+    badge.style.display = 'block';
+}
+
 btnJoin.onclick = () => {
     const code = inputCode.value.trim().toUpperCase();
     const pseudo = inputPseudo.value.trim();
@@ -155,6 +166,9 @@ function initWebSocket(code, pseudo) {
              tourActuel = -1;
              nomEquipeTour = "";
              evaluerVerrouillageBase();
+        } else if (data.startsWith("VOTRE_EQUIPE:")) {
+            const idx = parseInt(data.split(":")[1]);
+            afficherBadgeEquipe(idx);
         }
     };
 }
