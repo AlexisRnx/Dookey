@@ -10,18 +10,8 @@ var liste_joueurs: Array[String] = []
 
 func _ready() -> void:
 	# Création de l'interface graphique dynamique
-	var bg = TextureRect.new()
-	var tex_fond = load("res://Assets/fond1.2.png")
-	if tex_fond:
-		bg.texture = tex_fond
-		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVER
-	else:
-		var fallback = ColorRect.new()
-		fallback.color = Color(0.05, 0.05, 0.1, 1.0)
-		fallback.set_anchors_preset(Control.PRESET_FULL_RECT)
-		add_child(fallback)
-		
+	var bg = ColorRect.new()
+	bg.color = Color(0.55, 0.82, 0.95, 1.0) # Bright Sky Blue wrapping the map
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	
@@ -36,66 +26,113 @@ func _ready() -> void:
 	vbox.add_theme_constant_override("separation", 10)
 	margin.add_child(vbox)
 	
-	var entete = HBoxContainer.new()
-	entete.alignment = BoxContainer.ALIGNMENT_CENTER
-	entete.add_theme_constant_override("separation", 20)
+	var panel_global = PanelContainer.new()
+	panel_global.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	panel_global.custom_minimum_size = Vector2(750, 0)
+	var global_style = StyleBoxFlat.new()
+	global_style.bg_color = Color(0.96, 0.92, 0.76, 1.0) # Sand / Light Dirt
+	global_style.border_width_bottom = 6
+	global_style.border_width_top = 6
+	global_style.border_width_left = 6
+	global_style.border_width_right = 6
+	global_style.border_color = Color(0.55, 0.35, 0.15, 1.0) # Bark/Dirt Brown
+	global_style.corner_radius_top_left = 12
+	global_style.corner_radius_top_right = 12
+	global_style.corner_radius_bottom_left = 12
+	global_style.corner_radius_bottom_right = 12
+	global_style.shadow_color = Color(0.2, 0.4, 0.6, 0.3)
+	global_style.shadow_size = 0
+	global_style.shadow_offset = Vector2(8, 8) # Hard crisp shadow
+	global_style.set_content_margin_all(20)
+	panel_global.add_theme_stylebox_override("panel", global_style)
+	vbox.add_child(panel_global)
 	
-	var logo = TextureRect.new()
-	var tex_logo = load("res://Assets/image-removebg-preview (1).png")
-	if tex_logo:
-		logo.texture = tex_logo
-		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		logo.custom_minimum_size = Vector2(100, 100)
-		entete.add_child(logo)
+	var inner_vbox = VBoxContainer.new()
+	inner_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	inner_vbox.add_theme_constant_override("separation", 8)
+	panel_global.add_child(inner_vbox)
 	
 	var titre = Label.new()
 	titre.text = "SALLE D'ATTENTE"
 	titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	titre.add_theme_font_size_override("font_size", 42)
-	titre.add_theme_color_override("font_color", Color.WHITE)
-	entete.add_child(titre)
+	titre.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	var titre_settings = LabelSettings.new()
+	titre_settings.font_size = 46
+	titre_settings.font_color = Color(1.0, 1.0, 1.0)
+	titre_settings.outline_size = 8
+	titre_settings.outline_color = Color(0.4, 0.2, 0.05) # Deep brown outline
+	titre_settings.shadow_color = Color(0.0, 0.0, 0.0, 0.2)
+	titre_settings.shadow_size = 0
+	titre_settings.shadow_offset = Vector2(4, 4)
+	titre.label_settings = titre_settings
+	inner_vbox.add_child(titre)
 	
-	vbox.add_child(entete)
+	var qr_margin = MarginContainer.new()
+	qr_margin.add_theme_constant_override("margin_top", 5)
+	qr_margin.add_theme_constant_override("margin_bottom", 5)
+	inner_vbox.add_child(qr_margin)
+	
+	var qr_bg = PanelContainer.new()
+	var qr_style = StyleBoxFlat.new()
+	qr_style.bg_color = Color.WHITE
+	qr_style.border_width_bottom = 4
+	qr_style.border_width_top = 4
+	qr_style.border_width_left = 4
+	qr_style.border_width_right = 4
+	qr_style.border_color = Color(0.55, 0.35, 0.15)
+	qr_style.corner_radius_top_left = 8
+	qr_style.corner_radius_top_right = 8
+	qr_style.corner_radius_bottom_left = 6
+	qr_style.corner_radius_bottom_right = 6
+	qr_bg.add_theme_stylebox_override("panel", qr_style)
+	qr_bg.custom_minimum_size = Vector2(150, 150)
+	qr_bg.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var qr_center = CenterContainer.new()
+	qr_bg.add_child(qr_center)
+	qr_center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	
 	qr_texture = TextureRect.new()
 	qr_texture.custom_minimum_size = Vector2(160, 160)
 	qr_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	qr_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	vbox.add_child(qr_texture)
+	qr_center.add_child(qr_texture)
+	qr_margin.add_child(qr_bg)
 	
 	code_label = Label.new()
 	code_label.text = "Connexion..."
 	code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	code_label.add_theme_font_size_override("font_size", 42)
-	code_label.add_theme_font_size_override("font_size", 42)
-	code_label.add_theme_color_override("font_color", Color(1, 0.8, 0.2)) # Gold distinct text
-	vbox.add_child(code_label)
+	code_label.add_theme_color_override("font_color", Color.WHITE) 
+	var code_settings = LabelSettings.new()
+	code_settings.font_size = 40
+	code_settings.font_color = Color(1.0, 0.85, 0.2) # Vibrant yellow/gold
+	code_settings.outline_size = 8
+	code_settings.outline_color = Color(0.4, 0.2, 0.05)
+	code_label.label_settings = code_settings
+	inner_vbox.add_child(code_label)
 	
 	lien_label = Label.new()
 	lien_label.text = ""
 	lien_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lien_label.add_theme_font_size_override("font_size", 20)
-	lien_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-	vbox.add_child(lien_label)
+	lien_label.add_theme_color_override("font_color", Color(0.4, 0.2, 0.05))
+	inner_vbox.add_child(lien_label)
 	
 	var sous_titre = Label.new()
 	sous_titre.text = "Scannez le QR Code ou entrez l'adresse et le code sur votre navigateur"
 	sous_titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sous_titre.add_theme_font_size_override("font_size", 16)
-	sous_titre.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
-	vbox.add_child(sous_titre)
+	sous_titre.add_theme_color_override("font_color", Color(0.5, 0.35, 0.2))
+	inner_vbox.add_child(sous_titre)
 	
 	joueurs_titre_label = Label.new()
 	joueurs_titre_label.text = "0 joueur(s) connecté(s)\n"
 	joueurs_titre_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	joueurs_titre_label.add_theme_font_size_override("font_size", 24)
-	joueurs_titre_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
-	vbox.add_child(joueurs_titre_label)
+	joueurs_titre_label.add_theme_color_override("font_color", Color(0.3, 0.6, 0.3)) # Grass green text
+	inner_vbox.add_child(joueurs_titre_label)
 	
 	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(650, 100) # Assure au moins 100px d'espace vital
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(650, 80) # Plus compact
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	
 	joueurs_flow = HFlowContainer.new()
@@ -105,33 +142,48 @@ func _ready() -> void:
 	joueurs_flow.add_theme_constant_override("v_separation", 10)
 	
 	scroll.add_child(joueurs_flow)
-	vbox.add_child(scroll)
+	inner_vbox.add_child(scroll)
 	
 	var btn_start = Button.new()
 	btn_start.text = "COMMENCER LA PARTIE"
-	btn_start.add_theme_font_size_override("font_size", 22)
+	btn_start.add_theme_font_size_override("font_size", 24)
 	
 	var btn_style = StyleBoxFlat.new()
-	btn_style.bg_color = Color(0.8, 0.5, 0.1) # Dookey Gold
-	btn_style.corner_radius_top_left = 6
-	btn_style.corner_radius_top_right = 6
-	btn_style.corner_radius_bottom_left = 6
-	btn_style.corner_radius_bottom_right = 6
-	btn_style.set_content_margin_all(15)
+	btn_style.bg_color = Color(0.3, 0.8, 0.3) # Bright Grass Green
+	btn_style.border_width_bottom = 6
+	btn_style.border_width_top = 4
+	btn_style.border_width_left = 4
+	btn_style.border_width_right = 4
+	btn_style.border_color = Color(0.15, 0.5, 0.15) # Dark green border
+	btn_style.corner_radius_top_left = 12
+	btn_style.corner_radius_top_right = 12
+	btn_style.corner_radius_bottom_left = 12
+	btn_style.corner_radius_bottom_right = 12
+	btn_style.shadow_color = Color(0.2, 0.4, 0.6, 0.2)
+	btn_style.shadow_size = 0
+	btn_style.shadow_offset = Vector2(4, 4)
+	btn_style.content_margin_top = 10
+	btn_style.content_margin_bottom = 10
+	btn_style.content_margin_left = 20
+	btn_style.content_margin_right = 20
 	
 	btn_start.add_theme_stylebox_override("normal", btn_style)
 	btn_start.add_theme_color_override("font_color", Color.WHITE)
 	
 	var btn_hover = btn_style.duplicate()
-	btn_hover.bg_color = Color(1.0, 0.6, 0.2)
+	btn_hover.bg_color = Color(0.4, 0.9, 0.4)
+	btn_hover.border_color = Color(0.2, 0.6, 0.2)
 	btn_start.add_theme_stylebox_override("hover", btn_hover)
 	
 	btn_start.pressed.connect(_lancer_restauration)
 	btn_start.custom_minimum_size = Vector2(300, 0)
 	
 	var btn_container = CenterContainer.new()
-	btn_container.add_child(btn_start)
-	vbox.add_child(btn_container)
+	var margin_btn = MarginContainer.new()
+	margin_btn.add_theme_constant_override("margin_top", 5)
+	margin_btn.add_child(btn_start)
+	btn_container.add_child(margin_btn)
+	inner_vbox.add_child(btn_container)
 	
 	# Initialiser HTTPRequest pour télécharger le QR Code
 	http_request = HTTPRequest.new()
@@ -190,23 +242,27 @@ func _sur_joueur_rejoint(pseudo: String) -> void:
 	var pan = PanelContainer.new()
 	pan.name = "Joueur_" + pseudo.validate_node_name()
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0.6) # Dark transparent glass
-	style.border_width_bottom = 2
+	style.bg_color = Color(0.96, 0.92, 0.76) # Sand color
+	style.border_width_bottom = 4
 	style.border_width_top = 2
 	style.border_width_left = 2
 	style.border_width_right = 2
-	style.border_color = Color(1, 0.8, 0.2, 0.8) # Gold glow
-	style.corner_radius_top_left = 12
-	style.corner_radius_top_right = 12
-	style.corner_radius_bottom_left = 12
-	style.corner_radius_bottom_right = 12
+	style.border_color = Color(0.55, 0.35, 0.15) # Brown dirt border
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
 	style.set_content_margin_all(12)
 	pan.add_theme_stylebox_override("panel", style)
 	
 	var lbl = Label.new()
 	lbl.text = pseudo
-	lbl.add_theme_color_override("font_color", Color(1, 1, 1))
-	lbl.add_theme_font_size_override("font_size", 20)
+	lbl.add_theme_color_override("font_color", Color.WHITE)
+	var lbl_set = LabelSettings.new()
+	lbl_set.font_size = 22
+	lbl_set.outline_size = 6
+	lbl_set.outline_color = Color(0.4, 0.2, 0.05)
+	lbl.label_settings = lbl_set
 	pan.add_child(lbl)
 	
 	joueurs_flow.add_child(pan)
