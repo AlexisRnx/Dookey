@@ -15,13 +15,16 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	
+	var margin = MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_top", 40)
+	margin.add_theme_constant_override("margin_bottom", 40)
+	bg.add_child(margin)
+	
 	var vbox = VBoxContainer.new()
-	vbox.set_anchors_preset(Control.PRESET_CENTER)
-	vbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	vbox.grow_vertical = Control.GROW_DIRECTION_BOTH
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 20)
-	bg.add_child(vbox)
+	vbox.add_theme_constant_override("separation", 15)
+	margin.add_child(vbox)
 	
 	var titre = Label.new()
 	titre.text = "SALLE D'ATTENTE"
@@ -30,7 +33,7 @@ func _ready() -> void:
 	vbox.add_child(titre)
 	
 	qr_texture = TextureRect.new()
-	qr_texture.custom_minimum_size = Vector2(220, 220)
+	qr_texture.custom_minimum_size = Vector2(200, 200)
 	qr_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	qr_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	vbox.add_child(qr_texture)
@@ -63,7 +66,8 @@ func _ready() -> void:
 	vbox.add_child(joueurs_titre_label)
 	
 	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(650, 160)
+	scroll.custom_minimum_size = Vector2(650, 0)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	
 	joueurs_flow = HFlowContainer.new()
@@ -134,10 +138,14 @@ func _sur_qr_telecharge(result: int, response_code: int, _headers: PackedStringA
 			qr_texture.texture = ImageTexture.create_from_image(image)
 
 func _sur_joueur_rejoint(pseudo: String) -> void:
+	if pseudo in liste_joueurs:
+		return
+		
 	liste_joueurs.append(pseudo)
 	joueurs_titre_label.text = "%d joueur(s) connecté(s)\n" % liste_joueurs.size()
 	
 	var pan = PanelContainer.new()
+	pan.name = "Joueur_" + pseudo.validate_node_name()
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.2, 0.3, 0.5, 0.8)
 	style.corner_radius_top_left = 10
@@ -159,9 +167,8 @@ func _sur_joueur_quitte(pseudo: String) -> void:
 		liste_joueurs.erase(pseudo)
 		joueurs_titre_label.text = "%d joueur(s) connecté(s)\n" % liste_joueurs.size()
 		
-		for child in joueurs_flow.get_children():
-			if child is PanelContainer:
-				var lbl = child.get_child(0) as Label
-				if lbl and lbl.text == pseudo:
-					child.queue_free()
-					break
+	var safe_name = "Joueur_" + pseudo.validate_node_name()
+	var node = joueurs_flow.get_node_or_null(safe_name)
+	if node:
+		node.queue_free()
+		joueurs_flow.remove_child(node)
