@@ -208,6 +208,12 @@ func _ready() -> void:
 
 func _lancer_restauration() -> void:
 	WebSocketServer.assigner_equipes(liste_joueurs)
+	# Envoyer les équipes au serveur pour le filtrage côté serveur
+	var parts = []
+	for pseudo in WebSocketServer.equipes:
+		parts.append("%s=%d" % [pseudo.uri_encode(), WebSocketServer.equipes[pseudo]])
+	if parts.size() > 0:
+		WebSocketServer.envoyer_message("EQUIPES:" + ",".join(parts))
 	get_tree().change_scene_to_file("res://Scenes/game.tscn")
 
 func _sur_code_salle_recu(code: String) -> void:

@@ -126,16 +126,31 @@ function initWebSocket(code, pseudo) {
             tourActuel = parseInt(parts[1]);
             nomEquipeTour = parts[2];
             aVoteCeTour = false;
-            
             document.getElementById('ws-label').innerText = "Tour en cours";
-            evaluerVerrouillage();
+            // L'activation sera gérée par MON_TOUR / PAS_MON_TOUR
+        } else if (data === 'MON_TOUR') {
+            estVerrouille = false;
+            estArrete = false;
+            aVoteCeTour = false;
+            document.getElementById('ws-label').innerText = "C'est ton tour !";
+            document.getElementById("ecran-cliquable").style.opacity = "1.0";
+            document.getElementById("txt-info").innerText = "À TOI DE JOUER ! CLIQUE POUR ARRÊTER";
+            document.getElementById("nom-equipe-tour").innerText = "🎯 TON ÉQUIPE JOUE !";
+            melangerChiffres();
+            animer();
+        } else if (data === 'PAS_MON_TOUR') {
+            estVerrouille = true;
+            estArrete = true;
+            document.getElementById("ecran-cliquable").style.opacity = "0.3";
+            document.getElementById("txt-info").innerText = "Ce n'est pas le tour de ton équipe...";
+            document.getElementById("nom-equipe-tour").innerText = "Héros Actif : " + nomEquipeTour;
+            document.getElementById('ws-label').innerText = "En attente...";
         } else if (data === "TEMPS_ECOULE") {
             estVerrouille = true;
             document.getElementById("ecran-cliquable").style.opacity = "0.4";
             document.getElementById("txt-info").innerText = "TEMPS ÉCOULÉ - CHOIX ALÉATOIRE DANS LE JEU...";
             estArrete = true;
         } else if (data === "LOBBY_ATTENTE") {
-             // Si le Godot se relance au stade Lobby
              aVoteCeTour = false;
              tourActuel = -1;
              nomEquipeTour = "";

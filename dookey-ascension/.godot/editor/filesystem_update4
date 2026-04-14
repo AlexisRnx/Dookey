@@ -1,3 +1,1 @@
-res://Scenes/game.tscn
-res://Scenes/roue.tscn
-res://Scenes/lobby.tscn
+res://Scripts/lobby.gd

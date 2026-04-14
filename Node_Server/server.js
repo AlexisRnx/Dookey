@@ -75,7 +75,15 @@ wss.on('connection', (ws, req) => {
                 roomCode = generateRoomCode();
             }
             console.log(`[Serveur] Le jeu Godot est connecté ! Création de la salle : ${roomCode}`);
-            rooms.set(roomCode, { gameWs: ws, controllers: new Set(), isLocked: false, pseudos: new Set(), connectedPseudos: new Set() });
+            rooms.set(roomCode, { 
+                gameWs: ws, 
+                controllers: new Set(), 
+                isLocked: false, 
+                pseudos: new Set(), 
+                connectedPseudos: new Set(),
+                equipes: new Map(),    // pseudo -> teamIdx (0-3)
+                currentTeam: -1       // index de l'équipe dont c'est le tour (-1 = lobby)
+            });
             ws.send(`ROOM_CREATED:${roomCode}`);
         }
 
@@ -91,12 +99,40 @@ wss.on('connection', (ws, req) => {
                 return;
             }
             
-            // Broadcast game messages to all controllers in this room
+            // Messages du jeu Godot vers les controllers
             const room = rooms.get(roomCode);
             if (room) {
-                for (const controller of room.controllers) {
-                    if (controller.readyState === WebSocket.OPEN) {
-                        controller.send(msgStr);
+                // Stocker les équipes si Godot nous les envoie
+                if (msgStr.startsWith('EQUIPES:')) {
+                    const payload = msgStr.substring(8);
+                    room.equipes.clear();
+                    payload.split(',').forEach(entry => {
+                        const [pseudo, idx] = entry.split('=');
+                        if (pseudo && idx !== undefined) {
+                            room.equipes.set(decodeURIComponent(pseudo.trim()), parseInt(idx.trim()));
+                        }
+                    });
+                    console.log(`[Serveur] Équipes enregistrées pour ${roomCode}:`, Object.fromEntries(room.equipes));
+                    return; // Ne pas broadcaster aux controllers
+                }
+
+                // Détecter le tour actuel depuis NOUVEAU_TOUR:teamIdx:nomEquipe
+                if (msgStr.startsWith('NOUVEAU_TOUR:')) {
+                    const parts = msgStr.split(':');
+                    room.currentTeam = parseInt(parts[1]);
+                    console.log(`[Serveur] ${roomCode} - Nouveau tour, équipe index: ${room.currentTeam}`);
+                }
+
+                // Broadcaster aux controllers (NOUVEAU_TOUR, TEMPS_ECOULE, etc.)
+                for (const [ctrlWs, ctrlPseudo] of room.controllerMap || new Map()) {
+                    if (ctrlWs.readyState === WebSocket.OPEN) {
+                        ctrlWs.send(msgStr);
+                        // Envoyer un indicateur si c'est le tour du joueur
+                        if (msgStr.startsWith('NOUVEAU_TOUR:') && room.equipes.size > 0) {
+                            const myTeam = room.equipes.get(ctrlPseudo);
+                            const isMyTurn = (myTeam !== undefined && myTeam === room.currentTeam);
+                            ctrlWs.send(isMyTurn ? 'MON_TOUR' : 'PAS_MON_TOUR');
+                        }
                     }
                 }
             }
@@ -147,6 +183,10 @@ wss.on('connection', (ws, req) => {
         console.log(`[Serveur] Le joueur ${pseudo} a rejoint la salle ${upperCode}`);
         room.controllers.add(ws);
         
+        // Stocker le pseudo associé à ce WebSocket pour le filtrage par équipe
+        if (!room.controllerMap) room.controllerMap = new Map();
+        room.controllerMap.set(ws, pseudo);
+        
         // Notify the Game that a player joined
         if (room.gameWs.readyState === WebSocket.OPEN) {
             room.gameWs.send(`PLAYER_JOINED:${pseudo}`);
@@ -157,6 +197,18 @@ wss.on('connection', (ws, req) => {
 
         ws.on('message', (message, isBinary) => {
             const msgStr = isBinary ? message.toString('utf8') : message.toString();
+            
+            // Filtrage par équipe : seuls les joueurs de l'équipe active peuvent voter
+            const isVote = msgStr.startsWith('CLIC:') || msgStr.startsWith('VOTES:') || msgStr === 'LANCER';
+            if (isVote && room.equipes.size > 0 && room.currentTeam >= 0) {
+                const myTeam = room.equipes.get(pseudo);
+                if (myTeam === undefined || myTeam !== room.currentTeam) {
+                    console.log(`[Serveur] Vote BLOQUÉ de ${pseudo} (équipe ${myTeam}) - Tour de l'équipe ${room.currentTeam}`);
+                    ws.send('PAS_MON_TOUR');
+                    return;
+                }
+            }
+            
             // Forward controller messages only to the Godot game client in this room
             if (room.gameWs && room.gameWs.readyState === WebSocket.OPEN) {
                 room.gameWs.send(msgStr);
@@ -171,9 +223,8 @@ wss.on('connection', (ws, req) => {
                 const r = rooms.get(upperCode);
                 r.controllers.delete(ws);
                 r.connectedPseudos.delete(pseudo);
+                if (r.controllerMap) r.controllerMap.delete(ws);
                 
-                // Si la partie n'a pas encore commencé, on supprime de la liste globale
-                // et on prévient Godot pour retirer sa case de l'écran.
                 if (!r.isLocked) {
                     r.pseudos.delete(pseudo);
                     if (r.gameWs && r.gameWs.readyState === WebSocket.OPEN) {
