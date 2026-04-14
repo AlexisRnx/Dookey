@@ -260,11 +260,16 @@ func _plus_proche(depuis: Vector2i, liste: Array) -> Vector2i:
 # Déplacement case par case avec animation
 # ═══════════════════════════════════════════════════════════════════════════
 func _avancer_pion(nb: int) -> void:
-	en_deplacement = true
-
 	var data         : Dictionary = pions[tour_actuel]
 	var case_depart  : int = data["case"]
 	var case_arrivee : int = mini(case_depart + nb, parcours.size() - 1)
+	
+	if case_arrivee >= parcours.size()-1:
+		print(" %s a atteint l'arrivée !" % data["nom"])
+	else:
+		_appliquer_effet_case(data, case_arrivee) # <--- NOUVEAU
+	en_deplacement = false
+	en_deplacement = true
 
 	print("[%s] +%d → case %d/%d" % [data["nom"], nb, case_arrivee, parcours.size() - 1])
 
@@ -391,17 +396,6 @@ func _reprendre_tour() -> void:
 	WebSocketServer.etat_courant = msg
 	# Les manettes reconnectées verront "NOUVEAU_TOUR" et pourront revoter si elles reconnectent. 
 	WebSocketServer.envoyer_message(msg)
-
-
-# Ajoute ceci à la fin de ta fonction _avancer_pion(nb: int) :
-# ...
-# if case_arrivee >= parcours.size() - 1:
-#     print("🎉 %s a atteint l'arrivée !" % data["nom"])
-# else:
-#     _appliquer_effet_case(data, case_arrivee) # <--- NOUVEAU
-#
-# en_deplacement = false
-# ...
 
 # Nouvelle fonction pour gérer les cases spéciales
 func _appliquer_effet_case(data_pion: Dictionary, index_case: int) -> void:
