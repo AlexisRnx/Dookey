@@ -17,45 +17,45 @@ func _ready() -> void:
 	
 	var margin = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_top", 40)
-	margin.add_theme_constant_override("margin_bottom", 40)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_bottom", 20)
 	bg.add_child(margin)
 	
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 15)
+	vbox.add_theme_constant_override("separation", 10)
 	margin.add_child(vbox)
 	
 	var titre = Label.new()
 	titre.text = "SALLE D'ATTENTE"
 	titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	titre.add_theme_font_size_override("font_size", 36)
+	titre.add_theme_font_size_override("font_size", 32)
 	vbox.add_child(titre)
 	
 	qr_texture = TextureRect.new()
-	qr_texture.custom_minimum_size = Vector2(200, 200)
+	qr_texture.custom_minimum_size = Vector2(160, 160)
 	qr_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	qr_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	vbox.add_child(qr_texture)
 	
 	code_label = Label.new()
-	code_label.text = "Connexion au serveur..."
+	code_label.text = "Connexion..."
 	code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	code_label.add_theme_font_size_override("font_size", 48)
+	code_label.add_theme_font_size_override("font_size", 42)
 	code_label.add_theme_color_override("font_color", Color(1, 0.8, 0.2))
 	vbox.add_child(code_label)
 	
 	lien_label = Label.new()
 	lien_label.text = ""
 	lien_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lien_label.add_theme_font_size_override("font_size", 22)
+	lien_label.add_theme_font_size_override("font_size", 20)
 	lien_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(lien_label)
 	
 	var sous_titre = Label.new()
 	sous_titre.text = "Scannez le QR Code ou entrez l'adresse et le code sur votre navigateur"
 	sous_titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sous_titre.add_theme_font_size_override("font_size", 18)
+	sous_titre.add_theme_font_size_override("font_size", 16)
 	vbox.add_child(sous_titre)
 	
 	joueurs_titre_label = Label.new()
@@ -66,15 +66,15 @@ func _ready() -> void:
 	vbox.add_child(joueurs_titre_label)
 	
 	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(650, 0)
+	scroll.custom_minimum_size = Vector2(650, 100) # Assure au moins 100px d'espace vital
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	
 	joueurs_flow = HFlowContainer.new()
 	joueurs_flow.alignment = FlowContainer.ALIGNMENT_CENTER
 	joueurs_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	joueurs_flow.add_theme_constant_override("h_separation", 15)
-	joueurs_flow.add_theme_constant_override("v_separation", 15)
+	joueurs_flow.add_theme_constant_override("h_separation", 10)
+	joueurs_flow.add_theme_constant_override("v_separation", 10)
 	
 	scroll.add_child(joueurs_flow)
 	vbox.add_child(scroll)
@@ -127,7 +127,7 @@ func _sur_code_salle_recu(code: String) -> void:
 	lien_label.text = "Adresse : " + base_url + "/controller"
 			
 	var url_cible = base_url + "/controller?code=" + code
-	var url_api = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + url_cible.uri_encode()
+	var url_api = "https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=" + url_cible.uri_encode()
 	http_request.request(url_api)
 
 func _sur_qr_telecharge(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
