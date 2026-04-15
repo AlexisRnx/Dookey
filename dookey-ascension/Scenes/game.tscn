@@ -688,7 +688,7 @@ scale = Vector2(0.06, 0.06)
 skin_texture = ExtResource("6_o5yvi")
 
 [node name="Camera2D" type="Camera2D" parent="Equipes/Pion"]
-zoom = Vector2(0.7, 0.7)
+zoom = Vector2(2, 2)
 
 [node name="Pion2" parent="Equipes" instance=ExtResource("5_ldgsr")]
 scale = Vector2(0.06, 0.06)
