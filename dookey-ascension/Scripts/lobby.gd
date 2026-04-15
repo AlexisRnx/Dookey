@@ -268,6 +268,14 @@ func _afficher_page2() -> void:
 	# 1. Génère la répartition instantanément
 	WebSocketServer.assigner_equipes(liste_joueurs)
 	
+	# 2. Envoyer immédiatement les équipes au serveur
+	# → il enverra VOTRE_EQUIPE à chaque téléphone pour afficher la banderole
+	var parts = []
+	for pseudo in WebSocketServer.equipes:
+		parts.append("%s=%d" % [pseudo.uri_encode(), WebSocketServer.equipes[pseudo]])
+	if parts.size() > 0:
+		WebSocketServer.envoyer_message("EQUIPES:" + ",".join(parts))
+	
 	# 2. Vider la grille précédente s'il y en avait une
 	for child in equipes_grid.get_children():
 		child.queue_free()
@@ -317,12 +325,7 @@ func _afficher_page2() -> void:
 	page2_vbox.show()
 
 func _lancer_restauration_depuis_page2() -> void:
-	# Envoyer les équipes au serveur pour le filtrage côté serveur
-	var parts = []
-	for pseudo in WebSocketServer.equipes:
-		parts.append("%s=%d" % [pseudo.uri_encode(), WebSocketServer.equipes[pseudo]])
-	if parts.size() > 0:
-		WebSocketServer.envoyer_message("EQUIPES:" + ",".join(parts))
+	# Les équipes ont déjà été envoyées lors du clic sur "Suivant", on lance juste la scène
 	get_tree().change_scene_to_file("res://Scenes/game.tscn")
 
 func _lancer_restauration() -> void:
