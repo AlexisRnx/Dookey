@@ -374,34 +374,30 @@ func _avancer_pion(nb: int) -> void:
 	if data["case"] >= parcours.size() - 1:
 		print("🏁 [%s] Arrive à la ligne d'ARRIVÉE ! Épreuve finale (1 seul essai !)" % data["nom"])
 		await _sequence_portail(data)
-		return # Crucial : on s'arrête ici pour ne pas redéclencher le portail plus bas 
-	
-	# Pause respiratoire pour les cases normales
-	await get_tree().create_timer(0.8).timeout
+	else:
+		# Pause respiratoire pour les cases normales
+		await get_tree().create_timer(0.8).timeout
 
-	# 3. Vérification UNIQUE du Boss ou Majestueux sur la position finale (après tous les effets)
-	var atlas_final_pos = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
-	if atlas_final_pos == BOSS_TILE:
-		print("💀 [%s] Tombe sur la case DOOKEY BOSS !" % data["nom"])
-		await _sequence_dookey_boss(data)
-	elif atlas_final_pos == MAJESTUEUX_TILE:
-		print("👑 [%s] Tombe sur la case DOOKEY MAJESTUEUX !" % data["nom"])
-		await _sequence_dookey_majestueux(data)
-	elif atlas_final_pos == PORTAIL_TILE:
-		print("🌀 [%s] Entre dans le PORTAIL VIOLET !" % data["nom"])
-		await _sequence_portail(data)
-		# On laisse la rotation de tour normale se produire à la fin d'avancer_pion
+		# 3. Vérification UNIQUE du Boss ou Majestueux sur la position finale (après tous les effets)
+		var atlas_final_pos = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
+		if atlas_final_pos == BOSS_TILE:
+			print("💀 [%s] Tombe sur la case DOOKEY BOSS !" % data["nom"])
+			await _sequence_dookey_boss(data)
+		elif atlas_final_pos == MAJESTUEUX_TILE:
+			print("👑 [%s] Tombe sur la case DOOKEY MAJESTUEUX !" % data["nom"])
+			await _sequence_dookey_majestueux(data)
+		elif atlas_final_pos == PORTAIL_TILE:
+			print("🌀 [%s] Entre dans le PORTAIL VIOLET !" % data["nom"])
+			await _sequence_portail(data)
 
 	en_deplacement = false
-
 	
 	# 4. Vérifier si la tuile finale est une case "Rejoue" (vert)
-	#    Note : on re-lit l'atlas car _appliquer_malus_boss peut avoir déplacé le pion
 	var atlas_final = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
 	
 	if atlas_final == Vector2i(0, 1):
 		print("🔄 [%s] Tombe sur la case Verte ! REJOUE SON TOUR !" % data["nom"])
-		# On ne change pas tour_actuel, il garde la caméra et relance la roue
+		# On ne change pas tour_actuel
 	else:
 		# Fin normale du tour, passe au joueur suivant
 		tour_actuel = (tour_actuel + 1) % pions.size()
