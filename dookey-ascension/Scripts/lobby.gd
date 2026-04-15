@@ -8,33 +8,18 @@ var joueurs_titre_label: Label
 var joueurs_flow : HFlowContainer
 var liste_joueurs: Array[String] = []
 
-# Animation fond
-var bg_anim      : TextureRect
-var anim_frame   : int = 0
-var anim_dir     : int = 1  # +1 = vers 4, -1 = vers 0
-const NB_FRAMES  : int = 5  # frames 0..4
-
 func _ready() -> void:
-	# Fond animé ping-pong (pixil-frame-0.png .. pixil-frame-4.png)
-	bg_anim = TextureRect.new()
-	bg_anim.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bg_anim.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	bg_anim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_charger_frame(0)
-	add_child(bg_anim)
-	
-	# Timer d'animation : 8 fps ≈ 0.125s par frame
-	var timer = Timer.new()
-	timer.wait_time = 0.125
-	timer.autostart = true
-	timer.timeout.connect(_avancer_frame_anim)
-	add_child(timer)
+	# Fond de couleur unie (Ciel Bleu)
+	var bg = ColorRect.new()
+	bg.color = Color(0.55, 0.82, 0.95)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(bg)
 	
 	var margin = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_top", 20)
 	margin.add_theme_constant_override("margin_bottom", 20)
-	bg_anim.add_child(margin)
+	bg.add_child(margin)
 	
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -43,7 +28,7 @@ func _ready() -> void:
 	
 	var panel_global = PanelContainer.new()
 	panel_global.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	panel_global.custom_minimum_size = Vector2(750, 0)
+	panel_global.custom_minimum_size = Vector2(900, 0)
 	var global_style = StyleBoxFlat.new()
 	global_style.bg_color = Color(0.96, 0.92, 0.76, 1.0) # Sand / Light Dirt
 	global_style.border_width_bottom = 6
@@ -58,13 +43,16 @@ func _ready() -> void:
 	global_style.shadow_color = Color(0.2, 0.4, 0.6, 0.3)
 	global_style.shadow_size = 0
 	global_style.shadow_offset = Vector2(8, 8) # Hard crisp shadow
-	global_style.set_content_margin_all(20)
+	global_style.content_margin_top = 8
+	global_style.content_margin_bottom = 8
+	global_style.content_margin_left = 20
+	global_style.content_margin_right = 20
 	panel_global.add_theme_stylebox_override("panel", global_style)
 	vbox.add_child(panel_global)
 	
 	var inner_vbox = VBoxContainer.new()
 	inner_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	inner_vbox.add_theme_constant_override("separation", 8)
+	inner_vbox.add_theme_constant_override("separation", 2)
 	panel_global.add_child(inner_vbox)
 	
 	var titre = Label.new()
@@ -83,8 +71,8 @@ func _ready() -> void:
 	inner_vbox.add_child(titre)
 	
 	var qr_margin = MarginContainer.new()
-	qr_margin.add_theme_constant_override("margin_top", 5)
-	qr_margin.add_theme_constant_override("margin_bottom", 5)
+	qr_margin.add_theme_constant_override("margin_top", 0)
+	qr_margin.add_theme_constant_override("margin_bottom", 0)
 	inner_vbox.add_child(qr_margin)
 	
 	var qr_bg = PanelContainer.new()
@@ -147,7 +135,7 @@ func _ready() -> void:
 	inner_vbox.add_child(joueurs_titre_label)
 	
 	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(650, 80) # Plus compact
+	scroll.custom_minimum_size = Vector2(800, 80)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	
 	joueurs_flow = HFlowContainer.new()
@@ -177,8 +165,8 @@ func _ready() -> void:
 	btn_style.shadow_color = Color(0.2, 0.4, 0.6, 0.2)
 	btn_style.shadow_size = 0
 	btn_style.shadow_offset = Vector2(4, 4)
-	btn_style.content_margin_top = 10
-	btn_style.content_margin_bottom = 10
+	btn_style.content_margin_top = 5
+	btn_style.content_margin_bottom = 5
 	btn_style.content_margin_left = 20
 	btn_style.content_margin_right = 20
 	
@@ -195,7 +183,7 @@ func _ready() -> void:
 	
 	var btn_container = CenterContainer.new()
 	var margin_btn = MarginContainer.new()
-	margin_btn.add_theme_constant_override("margin_top", 5)
+	margin_btn.add_theme_constant_override("margin_top", 0)
 	margin_btn.add_child(btn_start)
 	btn_container.add_child(margin_btn)
 	inner_vbox.add_child(btn_container)
@@ -314,26 +302,3 @@ func _sur_joueur_quitte(pseudo: String) -> void:
 	if node:
 		node.queue_free()
 		joueurs_flow.remove_child(node)
-
-# ─── Animation fond ping-pong ───────────────────────────────────────────────
-func _charger_frame(idx: int) -> void:
-	var path = "res://Assets/pixil-frame-%d.png" % idx
-	var tex = load(path)
-	if tex:
-		bg_anim.texture = tex
-	else:
-		# Frame manquante : fond de secours bleu ciel
-		var fallback = ColorRect.new()
-		fallback.color = Color(0.55, 0.82, 0.95)
-		print("[lobby.gd] Frame manquante : ", path)
-
-func _avancer_frame_anim() -> void:
-	anim_frame += anim_dir
-	# Rebond : on inverse la direction aux extrémités
-	if anim_frame >= NB_FRAMES - 1:
-		anim_frame = NB_FRAMES - 1
-		anim_dir = -1
-	elif anim_frame <= 0:
-		anim_frame = 0
-		anim_dir = 1
-	_charger_frame(anim_frame)

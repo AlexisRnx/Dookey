@@ -10,6 +10,16 @@ const OFFSET_PION := Vector2(0.0, -10.0)
 
 const ROUE_SCENE  := preload("res://Scenes/roue.tscn")
 
+# Dictionnaire des effets des cases spéciales : Vector2i(AtlasX, AtlasY) : déplacement
+const EFFETS_CASES: Dictionary = {
+	Vector2i(1, 0):  3,   # Cercle bleu : +3
+	Vector2i(2, 0):  4,   # Cercle rouge : +4
+	Vector2i(3, 0):  5,   # Cercle jaune : +5
+	Vector2i(1, 1): -3,   # Cercle orange : -3
+	Vector2i(2, 1): -4,   # Cercle orange : -4
+	Vector2i(3, 1): -5    # Cercle orange : -5
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 # DONNÉES INTERNES
 # ═══════════════════════════════════════════════════════════════════════════
@@ -216,8 +226,9 @@ func _declencher_roue() -> void:
 # ═══════════════════════════════════════════════════════════════════════════
 func _construire_parcours() -> void:
 	const ATLAS_AUTORISES: Array[Vector2i] = [
-		Vector2i(5, 4), Vector2i(6, 4),
-		Vector2i(5, 5), Vector2i(6, 5),
+		Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0),
+		Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1),
+		Vector2i(0, 2), Vector2i(1, 2)
 	]
 
 	var toutes_cellules: Array = Array(layer_cases.get_used_cells())
@@ -274,27 +285,106 @@ func _plus_proche(depuis: Vector2i, liste: Array) -> Vector2i:
 func _avancer_pion(nb: int) -> void:
 	en_deplacement = true
 
-	var data         : Dictionary = pions[tour_actuel]
-	var case_depart  : int = data["case"]
-	var case_arrivee : int = mini(case_depart + nb, parcours.size() - 1)
+	var data : Dictionary = pions[tour_actuel]
+	
+	# Mouvement initial avec le chiffre de la roue
+	print("[%s] Résultat Roue : %+d" % [data["nom"], nb])
+	await _deplacer_pion_relatif(data, nb)
 
-	print("[%s] +%d → case %d/%d" % [data["nom"], nb, case_arrivee, parcours.size() - 1])
+	# Vérification de la case d'arrivée pour déclencher un effet (ex: +3, -3)
+	var coords_actuelles = parcours[data["case"]]
+	var atlas = layer_cases.get_cell_atlas_coords(coords_actuelles)
+	
+	if EFFETS_CASES.has(atlas):
+		var effet = EFFETS_CASES[atlas]
+		print("⚡ [%s] Tombe sur une case spéciale ! Effet : %+d" % [data["nom"], effet])
+		await get_tree().create_timer(0.4).timeout # Petite pause dramatique
+		# Le pion fait un bond direct (en_un_saut = true)
+		await _deplacer_pion_relatif(data, effet, true)
 
-	for idx in range(case_depart + 1, case_arrivee + 1):
-		data["case"] = idx
-		await _animer_pion(tour_actuel, idx)
-		_mettre_a_jour_hud()
-
-	if case_arrivee >= parcours.size() - 1:
+	if data["case"] >= parcours.size() - 1:
 		print("🎉 %s a atteint l'arrivée !" % data["nom"])
 
+	# Petite pause respiratoire pour voir le pion atterrir avant le changement de caméra
+	await get_tree().create_timer(0.8).timeout
+
 	en_deplacement = false
-	tour_actuel    = (tour_actuel + 1) % pions.size()
+	
+	# Vérifier la tuile FINAle (après les bonds) pour voir s'il rejoue
+	var atlas_final = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
+	
+	if atlas_final == Vector2i(0, 1):
+		print("🔄 [%s] Tombe sur la case Verte ! REJOUE SON TOUR !" % data["nom"])
+		# On ne change pas tour_actuel, il va garder la caméra et relancer la roue !
+	else:
+		# Fin normale du tour, passe au joueur suivant
+		tour_actuel = (tour_actuel + 1) % pions.size()
+		
 	_sauvegarder_partie()
 	
 	_basculer_camera()
 	_afficher_tour()
 	_mettre_a_jour_hud()
+
+func _deplacer_pion_relatif(data: Dictionary, nb: int, en_un_saut: bool = false) -> void:
+	var case_depart = data["case"]
+	var case_cible = clampi(case_depart + nb, 0, parcours.size() - 1)
+	
+	if case_cible == case_depart:
+		return
+		
+	if en_un_saut:
+		# Saut direct à l'arrivée en passant par-dessus le décor
+		data["case"] = case_cible
+		await _animer_saut_pion(tour_actuel, case_cible)
+		_mettre_a_jour_hud()
+	else:
+		# Avancer case par case
+		if case_cible > case_depart:
+			for idx in range(case_depart + 1, case_cible + 1):
+				data["case"] = idx
+				await _animer_pion(tour_actuel, idx)
+				_mettre_a_jour_hud()
+				
+		# Reculer case par case
+		elif case_cible < case_depart:
+			for idx in range(case_depart - 1, case_cible - 1, -1):
+				data["case"] = idx
+				await _animer_pion(tour_actuel, idx)
+				_mettre_a_jour_hud()
+
+# ───────────────────────────────────────────────────────────────────────────
+# ANIMATIONS DE DÉPLACEMENT
+# ───────────────────────────────────────────────────────────────────────────
+func _animer_saut_pion(index_pion: int, index_case: int) -> void:
+	var pion_node  : Node2D   = pions[index_pion]["node"]
+	var coord      : Vector2i = parcours[index_case]
+	var pos_locale : Vector2  = layer_cases.map_to_local(coord)
+	var pos_cible  : Vector2  = layer_cases.to_global(pos_locale) + OFFSET_PION
+
+	var pos_depart = pion_node.global_position
+	var distance = pos_depart.distance_to(pos_cible)
+	var hauteur = max(100.0, distance * 0.25) # Moins haut, plus ras du sol (minimum 100px)
+
+	# Fonction lambda pour calculer la courbe du saut en temps réel (Parabole)
+	var arc_saut = func(t: float):
+		var pos_base = pos_depart.lerp(pos_cible, t) # Trajectoire droite au sol
+		var offset_y = 4.0 * hauteur * t * (1.0 - t) # Formule parabole parfaite
+		pion_node.global_position = pos_base - Vector2(0, offset_y) # -y car Godot a le y vers le bas
+		
+	# Animation de saut en arc
+	var tw := create_tween()
+	tw.tween_method(arc_saut, 0.0, 1.0, 1.4) # Durée du bond (plus lent, flottant)
+	
+	# Petit effet de zoom proportionnel à la VRAIE taille du pion (pour éviter le bug géant)
+	var base_scale = pion_node.scale
+	var tw_scale = create_tween()
+	tw_scale.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw_scale.tween_property(pion_node, "scale", base_scale * 1.5, 0.7)
+	tw_scale.tween_property(pion_node, "scale", base_scale, 0.7)
+	
+	await tw.finished
+	pion_node.scale = base_scale # Sécurité pour être sûr qu'il redescend
 
 # ───────────────────────────────────────────────────────────────────────────
 # HOT RELOAD / SAUVEGARDE
