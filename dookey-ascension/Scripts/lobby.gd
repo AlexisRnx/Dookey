@@ -8,6 +8,10 @@ var joueurs_titre_label: Label
 var joueurs_flow : HFlowContainer
 var liste_joueurs: Array[String] = []
 
+var page1_vbox: VBoxContainer
+var page2_vbox: VBoxContainer
+var equipes_grid: GridContainer
+
 func _ready() -> void:
 	# Fond de couleur unie (Ciel Bleu)
 	var bg = ColorRect.new()
@@ -55,6 +59,17 @@ func _ready() -> void:
 	inner_vbox.add_theme_constant_override("separation", 2)
 	panel_global.add_child(inner_vbox)
 	
+	page1_vbox = VBoxContainer.new()
+	page1_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	page1_vbox.add_theme_constant_override("separation", 2)
+	inner_vbox.add_child(page1_vbox)
+	
+	page2_vbox = VBoxContainer.new()
+	page2_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	page2_vbox.add_theme_constant_override("separation", 30)
+	page2_vbox.hide()
+	inner_vbox.add_child(page2_vbox)
+	
 	var titre = Label.new()
 	titre.text = "SALLE D'ATTENTE"
 	titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -68,12 +83,12 @@ func _ready() -> void:
 	titre_settings.shadow_size = 0
 	titre_settings.shadow_offset = Vector2(4, 4)
 	titre.label_settings = titre_settings
-	inner_vbox.add_child(titre)
+	page1_vbox.add_child(titre)
 	
 	var qr_margin = MarginContainer.new()
 	qr_margin.add_theme_constant_override("margin_top", 0)
 	qr_margin.add_theme_constant_override("margin_bottom", 0)
-	inner_vbox.add_child(qr_margin)
+	page1_vbox.add_child(qr_margin)
 	
 	var qr_bg = PanelContainer.new()
 	var qr_style = StyleBoxFlat.new()
@@ -111,28 +126,28 @@ func _ready() -> void:
 	code_settings.outline_size = 8
 	code_settings.outline_color = Color(0.4, 0.2, 0.05)
 	code_label.label_settings = code_settings
-	inner_vbox.add_child(code_label)
+	page1_vbox.add_child(code_label)
 	
 	lien_label = Label.new()
 	lien_label.text = ""
 	lien_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lien_label.add_theme_font_size_override("font_size", 20)
 	lien_label.add_theme_color_override("font_color", Color(0.4, 0.2, 0.05))
-	inner_vbox.add_child(lien_label)
+	page1_vbox.add_child(lien_label)
 	
 	var sous_titre = Label.new()
 	sous_titre.text = "Scannez le QR Code ou entrez l'adresse et le code sur votre navigateur"
 	sous_titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sous_titre.add_theme_font_size_override("font_size", 16)
 	sous_titre.add_theme_color_override("font_color", Color(0.5, 0.35, 0.2))
-	inner_vbox.add_child(sous_titre)
+	page1_vbox.add_child(sous_titre)
 	
 	joueurs_titre_label = Label.new()
 	joueurs_titre_label.text = "0 joueur(s) connecté(s)\n"
 	joueurs_titre_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	joueurs_titre_label.add_theme_font_size_override("font_size", 24)
 	joueurs_titre_label.add_theme_color_override("font_color", Color(0.3, 0.6, 0.3)) # Grass green text
-	inner_vbox.add_child(joueurs_titre_label)
+	page1_vbox.add_child(joueurs_titre_label)
 	
 	var scroll = ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(800, 80)
@@ -145,11 +160,11 @@ func _ready() -> void:
 	joueurs_flow.add_theme_constant_override("v_separation", 10)
 	
 	scroll.add_child(joueurs_flow)
-	inner_vbox.add_child(scroll)
+	page1_vbox.add_child(scroll)
 	
-	var btn_start = Button.new()
-	btn_start.text = "COMMENCER LA PARTIE"
-	btn_start.add_theme_font_size_override("font_size", 24)
+	var btn_suivant = Button.new()
+	btn_suivant.text = "SUIVANT"
+	btn_suivant.add_theme_font_size_override("font_size", 24)
 	
 	var btn_style = StyleBoxFlat.new()
 	btn_style.bg_color = Color(0.3, 0.8, 0.3) # Bright Grass Green
@@ -170,23 +185,63 @@ func _ready() -> void:
 	btn_style.content_margin_left = 20
 	btn_style.content_margin_right = 20
 	
-	btn_start.add_theme_stylebox_override("normal", btn_style)
-	btn_start.add_theme_color_override("font_color", Color.WHITE)
+	btn_suivant.add_theme_stylebox_override("normal", btn_style)
+	btn_suivant.add_theme_color_override("font_color", Color.WHITE)
 	
 	var btn_hover = btn_style.duplicate()
 	btn_hover.bg_color = Color(0.4, 0.9, 0.4)
 	btn_hover.border_color = Color(0.2, 0.6, 0.2)
-	btn_start.add_theme_stylebox_override("hover", btn_hover)
+	btn_suivant.add_theme_stylebox_override("hover", btn_hover)
 	
-	btn_start.pressed.connect(_lancer_restauration)
-	btn_start.custom_minimum_size = Vector2(300, 0)
+	btn_suivant.pressed.connect(_afficher_page2)
+	btn_suivant.custom_minimum_size = Vector2(300, 0)
 	
 	var btn_container = CenterContainer.new()
 	var margin_btn = MarginContainer.new()
 	margin_btn.add_theme_constant_override("margin_top", 0)
-	margin_btn.add_child(btn_start)
+	margin_btn.add_child(btn_suivant)
 	btn_container.add_child(margin_btn)
-	inner_vbox.add_child(btn_container)
+	page1_vbox.add_child(btn_container)
+	
+	# -------------- PAGE 2 (STYLE TABLEAU EQUIPES) --------------
+	var titre2 = Label.new()
+	titre2.text = "COMPOSITION DES ÉQUIPES"
+	titre2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	titre2.label_settings = titre_settings
+	page2_vbox.add_child(titre2)
+	
+	var p2_panel = PanelContainer.new()
+	var p2_style = StyleBoxFlat.new()
+	p2_style.bg_color = Color(0.1, 0.1, 0.1, 0.3)
+	p2_style.corner_radius_top_left = 8
+	p2_style.corner_radius_top_right = 8
+	p2_style.corner_radius_bottom_left = 8
+	p2_style.corner_radius_bottom_right = 8
+	p2_style.content_margin_left = 20
+	p2_style.content_margin_right = 20
+	p2_style.content_margin_top = 20
+	p2_style.content_margin_bottom = 20
+	p2_panel.add_theme_stylebox_override("panel", p2_style)
+	
+	equipes_grid = GridContainer.new()
+	equipes_grid.columns = 4
+	equipes_grid.add_theme_constant_override("h_separation", 50)
+	p2_panel.add_child(equipes_grid)
+	page2_vbox.add_child(p2_panel)
+	
+	var btn_start = Button.new()
+	btn_start.text = "COMMENCER LA PARTIE"
+	btn_start.add_theme_font_size_override("font_size", 24)
+	btn_start.add_theme_stylebox_override("normal", btn_style)
+	btn_start.add_theme_color_override("font_color", Color.WHITE)
+	btn_start.add_theme_stylebox_override("hover", btn_hover)
+	btn_start.pressed.connect(_lancer_restauration_depuis_page2)
+	btn_start.custom_minimum_size = Vector2(300, 0)
+	
+	var ct_start = CenterContainer.new()
+	ct_start.add_child(btn_start)
+	page2_vbox.add_child(ct_start)
+	# -------------------------------------------------------------
 	
 	# Initialiser HTTPRequest pour télécharger le QR Code
 	http_request = HTTPRequest.new()
@@ -209,8 +264,59 @@ func _ready() -> void:
 			print("[lobby.gd] Sauvegarde trouvée ! Reprise à chaud de la partie...")
 			call_deferred("_lancer_restauration")
 
-func _lancer_restauration() -> void:
+func _afficher_page2() -> void:
+	# 1. Génère la répartition instantanément
 	WebSocketServer.assigner_equipes(liste_joueurs)
+	
+	# 2. Vider la grille précédente s'il y en avait une
+	for child in equipes_grid.get_children():
+		child.queue_free()
+		
+	# 3. Construire les colonnes
+	for i in range(4):
+		var vb = VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 10)
+		
+		var lbl_title = Label.new()
+		lbl_title.text = WebSocketServer.NOMS_EQUIPES[i]
+		lbl_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var ls = LabelSettings.new()
+		ls.font_size = 28
+		ls.outline_size = 6
+		ls.outline_color = Color.BLACK
+		ls.font_color = WebSocketServer.COULEURS_EQUIPES[i]
+		lbl_title.label_settings = ls
+		vb.add_child(lbl_title)
+		
+		# Séparateur propre
+		var sep = HSeparator.new()
+		vb.add_child(sep)
+		
+		var cb_joueurs = 0
+		for pseudo in WebSocketServer.equipes:
+			if WebSocketServer.equipes[pseudo] == i:
+				var lbl = Label.new()
+				lbl.text = "• " + pseudo
+				lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				lbl.add_theme_font_size_override("font_size", 20)
+				lbl.add_theme_color_override("font_color", Color.WHITE)
+				vb.add_child(lbl)
+				cb_joueurs += 1
+				
+		if cb_joueurs == 0:
+			var lbl = Label.new()
+			lbl.text = "---"
+			lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+			vb.add_child(lbl)
+			
+		equipes_grid.add_child(vb)
+		
+	# 4. Basculer les pages
+	page1_vbox.hide()
+	page2_vbox.show()
+
+func _lancer_restauration_depuis_page2() -> void:
 	# Envoyer les équipes au serveur pour le filtrage côté serveur
 	var parts = []
 	for pseudo in WebSocketServer.equipes:
@@ -218,6 +324,11 @@ func _lancer_restauration() -> void:
 	if parts.size() > 0:
 		WebSocketServer.envoyer_message("EQUIPES:" + ",".join(parts))
 	get_tree().change_scene_to_file("res://Scenes/game.tscn")
+
+func _lancer_restauration() -> void:
+	# Utilisé par le Hot-Reload auto depuis l'éditeur
+	WebSocketServer.assigner_equipes(liste_joueurs)
+	_lancer_restauration_depuis_page2()
 
 func _sur_code_salle_recu(code: String) -> void:
 	code_label.text = code
