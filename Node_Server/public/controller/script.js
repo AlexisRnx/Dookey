@@ -321,6 +321,14 @@ function initWebSocket(code, pseudo) {
             banner.style.background = EQUIPES_COULEURS[idx] || '#555';
             banner.innerText = EQUIPES_NOMS[idx] || ('Equipe ' + (idx + 1));
             banner.style.display = 'block';
+        } else if (data.startsWith("GAME_WIN:")) {
+            const winName = data.split(":")[1];
+            document.getElementById('victoire-screen').style.display = 'flex';
+            document.getElementById('gagnant-nom').innerText = winName;
+            // Retour au menu (reload) après 10s
+            setTimeout(() => {
+                location.reload();
+            }, 10000);
         }
     };
 }

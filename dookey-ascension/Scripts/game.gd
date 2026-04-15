@@ -373,6 +373,8 @@ func _avancer_pion(nb: int) -> void:
 
 	if data["case"] >= parcours.size() - 1:
 		print("🎉 %s a atteint l'arrivée !" % data["nom"])
+		await _sequence_victoire(data["nom"])
+		return
 
 	# Pause respiratoire
 	await get_tree().create_timer(0.8).timeout
@@ -802,6 +804,67 @@ func _sequence_portail(data: Dictionary) -> bool:
 			equipes_bloquees_portail.append(tour_actuel)
 	
 	return a_gagne
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SÉQUENCE DE VICTOIRE FINALE
+# ═══════════════════════════════════════════════════════════════════════════
+func _sequence_victoire(gagnant_nom: String) -> void:
+	# 1. Notifier tout le monde
+	WebSocketServer.envoyer_message("GAME_WIN:" + gagnant_nom)
+	chrono_actif = false
+	
+	# 2. UI plein écran
+	var sw := get_viewport().get_visible_rect().size.x
+	var sh := get_viewport().get_visible_rect().size.y
+	
+	var vic_layer = CanvasLayer.new()
+	vic_layer.layer = 100
+	add_child(vic_layer)
+	
+	var bg = ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.85)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vic_layer.add_child(bg)
+	
+	var vbox = VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_CENTER)
+	vbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	vbox.grow_vertical = Control.GROW_DIRECTION_BOTH
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 30)
+	bg.add_child(vbox)
+	
+	var lbl_vic = Label.new()
+	lbl_vic.text = "VICTOIRE !"
+	lbl_vic.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_vic.add_theme_font_size_override("font_size", 120)
+	lbl_vic.add_theme_color_override("font_color", Color.YELLOW)
+	lbl_vic.add_theme_constant_override("outline_size", 20)
+	lbl_vic.add_theme_color_override("font_outline_color", Color.BLACK)
+	vbox.add_child(lbl_vic)
+	
+	var lbl_team = Label.new()
+	lbl_team.text = gagnant_nom
+	lbl_team.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_team.add_theme_font_size_override("font_size", 60)
+	lbl_team.add_theme_color_override("font_color", Color.WHITE)
+	lbl_team.add_theme_constant_override("outline_size", 10)
+	lbl_team.add_theme_color_override("font_outline_color", Color.BLACK)
+	vbox.add_child(lbl_team)
+	
+	var lbl_info = Label.new()
+	lbl_info.text = "Retour au menu dans 10 secondes..."
+	lbl_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_info.add_theme_font_size_override("font_size", 24)
+	vbox.add_child(lbl_info)
+	
+	# 3. Supprimer la sauvegarde pour permettre une nouvelle partie
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.sessionStorage.removeItem('dookeyGameState');")
+	
+	# 4. Attendre et rediriger
+	await get_tree().create_timer(10.0).timeout
+	get_tree().change_scene_to_file("res://Scenes/lobby.tscn")
 
 func _sur_portail_qte_recu(succes: bool, pseudo: String) -> void:
 	if not portail_actif: return

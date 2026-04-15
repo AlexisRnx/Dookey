@@ -307,6 +307,40 @@
 			margin: 10px 0;
 			text-shadow: 0 0 15px #ba55d3;
 		}
+		/* Victoire */
+		#victoire-screen {
+			position: fixed;
+			top: 0; left: 0;
+			width: 100%; height: 100%;
+			background: radial-gradient(circle, #ffd700, #b8860b);
+			display: none;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			z-index: 2000;
+			text-align: center;
+			padding: 20px;
+		}
+		#victoire-screen h1 {
+			font-size: 3.5rem;
+			color: #fff;
+			margin-bottom: 20px;
+			text-shadow: 0 0 20px rgba(0,0,0,0.5);
+			animation: bounce 1s infinite alternate;
+		}
+		#victoire-screen #gagnant-nom {
+			font-size: 2.2rem;
+			color: #fff;
+			font-weight: 800;
+			background: rgba(0,0,0,0.3);
+			padding: 15px 30px;
+			border-radius: 50px;
+			margin-bottom: 20px;
+		}
+		@keyframes bounce {
+			from { transform: translateY(0); }
+			to { transform: translateY(-20px); }
+		}
 
 	</style>
 </head>
@@ -399,6 +433,13 @@
 				<div id="qte-cursor" class="qte-cursor"></div>
 			</div>
 			<p id="portail-status" style="margin-top: 25px; font-weight: bold; font-size: 1.2rem;"></p>
+		</div>
+
+		<!-- REDIRECTION VICTOIRE -->
+		<div id="victoire-screen">
+			<h1>🏆 VICTOIRE 🏆</h1>
+			<div id="gagnant-nom">NOM DE L'EQUIPE</div>
+			<p style="color: white; font-size: 1.2rem;">Félicitations ! Retour au menu dans quelques instants...</p>
 		</div>
     </div>
 
