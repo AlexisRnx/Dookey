@@ -16,8 +16,14 @@ function attemptFillCode() {
         cp = window.location.href.split('code=')[1].split('&')[0];
     }
     
-    let savedCode = sessionStorage.getItem('dookeyRoomCode');
-    let savedPseudo = sessionStorage.getItem('dookeyPseudo');
+    let savedCode = null;
+    let savedPseudo = null;
+    try {
+        savedCode = sessionStorage.getItem('dookeyRoomCode');
+        savedPseudo = sessionStorage.getItem('dookeyPseudo');
+    } catch(e) {
+        console.warn("sessionStorage non disponible", e);
+    }
 
     if (cp) {
         inputCode.value = cp.toUpperCase();
@@ -87,9 +93,16 @@ btnJoin.onclick = () => {
 };
 
 // Reconnexion automatique si on actualise !
-if (savedCode && savedPseudo && !codeParam) {
+let globSavedCode = null;
+let globSavedPseudo = null;
+try {
+    globSavedCode = sessionStorage.getItem('dookeyRoomCode');
+    globSavedPseudo = sessionStorage.getItem('dookeyPseudo');
+} catch(e) {}
+
+if (globSavedCode && globSavedPseudo && !codeParam) {
     btnJoin.innerText = "Reconnexion...";
-    initWebSocket(savedCode, savedPseudo);
+    initWebSocket(globSavedCode, globSavedPseudo);
 }
 
 function initWebSocket(code, pseudo) {
