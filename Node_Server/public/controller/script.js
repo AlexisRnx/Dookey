@@ -63,7 +63,9 @@ let qteActive = false;
 let qtePosition = 0;
 let qteDirection = 1;
 let qteAnimId = null;
-const qteVitesse = 2.2; 
+
+let lastTime = 0;
+const VITESSE_UNIFORME = 90; // 90% de la largeur de la barre par seconde
 
 const curseur = document.getElementById('curseur');
 const cases = document.querySelectorAll('.case-score');
@@ -145,7 +147,8 @@ function initWebSocket(code, pseudo) {
                 document.getElementById('ws-label').innerText = 'Connecté (Attente...)';
                 
                 melangerChiffres();
-                animer();
+                lastTime = performance.now();
+                animer(lastTime);
                 evaluerVerrouillageBase(); // Bloque tout jusqu'au NOUVEAU_TOUR
             } else if (data === "ERROR:ROOM_NOT_FOUND") {
                 sessionStorage.removeItem('dookeyRoomCode');
@@ -286,7 +289,8 @@ function initWebSocket(code, pseudo) {
             document.getElementById("txt-info").innerText = "À TOI DE JOUER ! CLIQUE POUR ARRÊTER";
             document.getElementById("nom-equipe-tour").innerText = "🎯 TON ÉQUIPE JOUE !";
             melangerChiffres();
-            animer();
+            lastTime = performance.now();
+            animer(lastTime);
         } else if (data === 'PAS_MON_TOUR') {
             estVerrouille = true;
             estArrete = true;
@@ -339,7 +343,8 @@ function evaluerVerrouillage() {
         document.getElementById("txt-info").innerText = "À TOI DE JOUER ! CLIQUE POUR ARRÊTER";
         estArrete = false;
         melangerChiffres();
-        animer();
+        lastTime = performance.now();
+        animer(lastTime);
     }
 }
 
@@ -350,13 +355,17 @@ function melangerChiffres() {
     });
 }
 
-function animer() {
+function animer(currentTime) {
     if (estArrete) {
         if (animFrameId) cancelAnimationFrame(animFrameId);
         return;
     }
 
-    position += vitesse * direction;
+    const deltaTime = (currentTime - lastTime) / 1000; // Convertir en secondes
+    lastTime = currentTime;
+
+    position += VITESSE_UNIFORME * direction * deltaTime;
+    
     if (position >= 100) { position = 100; direction = -1; }
     else if (position <= 0) { position = 0; direction = 1; }
     
@@ -368,7 +377,6 @@ function animer() {
         else c.classList.remove('case-active');
     });
 
-    if (animFrameId) cancelAnimationFrame(animFrameId);
     animFrameId = requestAnimationFrame(animer);
 }
 
@@ -435,7 +443,8 @@ function lancerPortailQTE() {
     document.getElementById('portail-flash').style.opacity = "0";
     document.getElementById('ecran-cliquable').style.display = 'none';
     
-    animerPortail();
+    lastTime = performance.now();
+    animerPortail(lastTime);
 }
 
 function stopPortailQTE() {
@@ -445,10 +454,14 @@ function stopPortailQTE() {
     document.getElementById('ecran-cliquable').style.display = '';
 }
 
-function animerPortail() {
+function animerPortail(currentTime) {
     if (!qteActive || portailAClike) return;
 
-    qtePosition += qteVitesse * qteDirection;
+    const deltaTime = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+
+    qtePosition += VITESSE_UNIFORME * qteDirection * deltaTime;
+    
     if (qtePosition >= 100) { qtePosition = 100; qteDirection = -1; }
     else if (qtePosition <= 0) { qtePosition = 0; qteDirection = 1; }
 

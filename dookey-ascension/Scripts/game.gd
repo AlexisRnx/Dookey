@@ -754,8 +754,13 @@ func _sequence_portail(data: Dictionary) -> void:
 	# Afficher un petit chrono ou message
 	hud_label.text = "ÉPREUVE DU PORTAIL EN COURS..."
 	
-	# Attendre 8 secondes
-	await get_tree().create_timer(8.0).timeout
+	var est_bot = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
+
+	# Attendre (plus court pour les bots)
+	if est_bot:
+		await get_tree().create_timer(2.0).timeout
+	else:
+		await get_tree().create_timer(8.0).timeout
 	
 	portail_actif = false
 	WebSocketServer.envoyer_message("PORTAIL_QTE_END")
@@ -764,12 +769,17 @@ func _sequence_portail(data: Dictionary) -> void:
 	var total_votes = portail_votes["success"] + portail_votes["fail"]
 	var a_gagne = false
 	
-	if total_votes == 0:
-		# Si personne n'a cliqué, on considère un échec (ou on peut mettre 50/50)
-		a_gagne = false
+	if est_bot:
+		# Bot : 10% de chance de gagner
+		a_gagne = (randf() < 0.1)
+		print("[Portail] Résultat BOT : ", "GAGNÉ" if a_gagne else "ÉCHEC")
 	else:
-		# Gagne si 50% ou plus de réussite
-		a_gagne = (float(portail_votes["success"]) / float(total_votes)) >= 0.5
+		if total_votes == 0:
+			# Si personne n'a cliqué, on considère un échec
+			a_gagne = false
+		else:
+			# Gagne si 50% ou plus de réussite
+			a_gagne = (float(portail_votes["success"]) / float(total_votes)) >= 0.5
 		
 	if a_gagne:
 		await _afficher_banderole_portail("GAGNÉ !")
