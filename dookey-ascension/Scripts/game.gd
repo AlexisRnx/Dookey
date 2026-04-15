@@ -372,23 +372,12 @@ func _avancer_pion(nb: int) -> void:
 		await _deplacer_pion_relatif(data, effet, true)
 
 	if data["case"] >= parcours.size() - 1:
-		print("🏁 [%s] Arrive à la ligne d'ARRIVÉE ! Épreuve finale..." % data["nom"])
-		var est_equipe_bot = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
-		
-		# Les joueurs humains ont 3 tentatives, les bots seulement 1
-		var nb_tentatives_max = 1 if est_equipe_bot else 3
-		
-		for t in range(nb_tentatives_max):
-			if t > 0:
-				print("🔄 [%s] Tentative %d..." % [data["nom"], t + 1])
-				await get_tree().create_timer(1.5).timeout
-			
-			var gagne = await _sequence_portail(data)
-			if gagne:
-				break # Sort de la boucle si réussite (la redirection se fera dans _sequence_portail)
-	else:
-		# Pause respiratoire seulement si on n'est pas à l'arrivée
-		await get_tree().create_timer(0.8).timeout
+		print("🏁 [%s] Arrive à la ligne d'ARRIVÉE ! Épreuve finale (1 seul essai !)" % data["nom"])
+		await _sequence_portail(data)
+		return # Crucial : on s'arrête ici pour ne pas redéclencher le portail plus bas 
+	
+	# Pause respiratoire pour les cases normales
+	await get_tree().create_timer(0.8).timeout
 
 	# 3. Vérification UNIQUE du Boss ou Majestueux sur la position finale (après tous les effets)
 	var atlas_final_pos = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
