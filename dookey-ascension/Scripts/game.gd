@@ -588,8 +588,8 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	WebSocketServer.envoyer_message("BOSS_RESULT:" + str(gagnant))
 	await get_tree().create_timer(2.5).timeout
 
-	# 7. Appliquer le malus
-	_appliquer_malus_boss(gagnant, data)
+	# 7. Appliquer le malus (AWAIT obligatoire : contient des await internes)
+	await _appliquer_malus_boss(gagnant, data)
 
 	# 8. Boss repart dans le ciel
 	boss_card_0.visible = false
