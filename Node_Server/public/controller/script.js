@@ -36,9 +36,8 @@ const vitesse = 1.5;
 const curseur = document.getElementById('curseur');
 const cases = document.querySelectorAll('.case-score');
 
-// Équipes (alignées avec COULEURS_EQUIPES dans websocket_server.gd)
 const EQUIPES_COULEURS = ['#b80000', '#414e8e', '#d2ec42', '#12c337'];
-const EQUIPES_NOMS     = ['Équipe Rouge 🔴', 'Équipe Bleue 🔵', 'Équipe Lime 🟡', 'Équipe Verte 🟢'];
+const EQUIPES_NOMS     = ['Équipe Rouge', 'Équipe Bleue', 'Équipe Lime', 'Équipe Verte'];
 
 function afficherBadgeEquipe(idx) {
     const badge = document.getElementById('badge-equipe');
