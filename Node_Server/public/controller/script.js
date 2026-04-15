@@ -5,20 +5,37 @@ const btnJoin = document.getElementById('btn-join');
 const errorLabel = document.getElementById('login-error');
 
 // Remplissage auto si URL = ?code=XYZ
-const urlParams = new URLSearchParams(window.location.search);
-const codeParam = urlParams.get('code');
+function attemptFillCode() {
+    let cp = null;
+    try {
+        const urlP = new URLSearchParams(window.location.search);
+        cp = urlP.get('code');
+    } catch(e) {}
+    
+    if (!cp && window.location.href.includes('code=')) {
+        cp = window.location.href.split('code=')[1].split('&')[0];
+    }
+    
+    let savedCode = sessionStorage.getItem('dookeyRoomCode');
+    let savedPseudo = sessionStorage.getItem('dookeyPseudo');
 
-let savedCode = sessionStorage.getItem('dookeyRoomCode');
-let savedPseudo = sessionStorage.getItem('dookeyPseudo');
+    if (cp) {
+        inputCode.value = cp.toUpperCase();
+    } else if (savedCode) {
+        inputCode.value = savedCode;
+    }
+    
+    if (savedPseudo) {
+        inputPseudo.value = savedPseudo;
+    }
+    return cp;
+}
 
-if (codeParam) {
-    inputCode.value = codeParam.toUpperCase();
-} else if (savedCode) {
-    inputCode.value = savedCode;
-}
-if (savedPseudo) {
-    inputPseudo.value = savedPseudo;
-}
+const codeParam = attemptFillCode();
+
+// Sécurité supplémentaire pour les iPhones/navigateurs lents
+window.addEventListener('DOMContentLoaded', attemptFillCode);
+setTimeout(attemptFillCode, 150);
 
 let socket;
 let isGameScreenActive = false;
