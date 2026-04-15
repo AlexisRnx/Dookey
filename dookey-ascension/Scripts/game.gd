@@ -65,6 +65,7 @@ var boss_pct_1    : Label        = null
 var boss_card_0   : PanelContainer = null
 var boss_card_1   : PanelContainer = null
 var boss_timer_lbl: Label        = null
+var boss_layer     : CanvasLayer  = null
 
 # ═══════════════════════════════════════════════════════════════════════════
 func _ready() -> void:
@@ -193,7 +194,7 @@ func _sur_votes_recus(votes: Dictionary) -> void:
 
 # ── Le site a envoyé CLIC → ignore si chrono en attente ────────────────────
 func _sur_lancer_roue_web() -> void:
-	if not en_deplacement and not chrono_actif:
+	if not en_deplacement and not chrono_actif and not boss_vote_actif:
 		if roue_instance.visible:
 			var noeud_roue: Node2D = roue_instance.get_node("Node2D")
 			noeud_roue.lancer_roue_depuis_web()
@@ -520,6 +521,10 @@ func _reprendre_tour() -> void:
 # DOOKEY BOSS SÉQUENCE
 # ═══════════════════════════════════════════════════════════════════════════
 func _sequence_dookey_boss(data: Dictionary) -> void:
+	# Arreter le chrono du tour en cours pour eviter tout conflit
+	chrono_actif = false
+	temp_label_chrono.visible = false
+	
 	boss_votes = {0: 0, 1: 0}
 	boss_vote_actif = true
 	WebSocketServer.boss_vote_recu.connect(_sur_boss_vote)
@@ -586,7 +591,9 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	WebSocketServer.envoyer_message("BOSS_END")
 	if WebSocketServer.boss_vote_recu.is_connected(_sur_boss_vote):
 		WebSocketServer.boss_vote_recu.disconnect(_sur_boss_vote)
-	boss_overlay.queue_free()
+	
+	boss_layer.queue_free()
+	boss_layer = null
 	boss_overlay = null
 	boss_vote_actif = false
 
@@ -594,12 +601,17 @@ func _creer_boss_ui() -> void:
 	var sw := get_viewport().get_visible_rect().size.x
 	var sh := get_viewport().get_visible_rect().size.y
 
+	# Créer le BossLayer au dessus du HUD
+	boss_layer = CanvasLayer.new()
+	boss_layer.layer = 20
+	add_child(boss_layer)
+
 	# Overlay sombre
 	var bg = ColorRect.new()
 	bg.name = "BossOverlay"
 	bg.color = Color(0.0, 0.0, 0.0, 0.78)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hud_layer.add_child(bg)
+	boss_layer.add_child(bg)
 	boss_overlay = bg
 
 	# Sprite Boss
@@ -610,7 +622,7 @@ func _creer_boss_ui() -> void:
 	boss_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	boss_sprite.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	boss_sprite.position = Vector2(sw / 2.0 - 100.0, -260.0)
-	hud_layer.add_child(boss_sprite)
+	boss_layer.add_child(boss_sprite)
 
 	# Dialogue
 	var dial_panel = PanelContainer.new()
@@ -640,7 +652,7 @@ func _creer_boss_ui() -> void:
 	dial_lbl.add_theme_color_override("font_outline_color", Color(0.5, 0.0, 0.8))
 	dial_panel.add_child(dial_lbl)
 	dial_panel.visible = false
-	hud_layer.add_child(dial_panel)
+	boss_layer.add_child(dial_panel)
 	dial_panel.move_to_front() # Ensure it's on top of ORange/Gray
 
 	# Cartes de vote (centrées)
@@ -653,7 +665,7 @@ func _creer_boss_ui() -> void:
 		Color(0.6, 0.0, 0.0), Vector2(cx - 320.0, cy - 80.0)
 	)
 	boss_card_0.visible = false
-	hud_layer.add_child(boss_card_0)
+	boss_layer.add_child(boss_card_0)
 	boss_card_0.move_to_front()
 	boss_pct_0 = boss_card_0.get_node("VBox/Pct")
 
@@ -663,7 +675,7 @@ func _creer_boss_ui() -> void:
 		Color(0.6, 0.0, 0.0), Vector2(cx + 20.0, cy - 80.0) # Red theme like Card 0
 	)
 	boss_card_1.visible = false
-	hud_layer.add_child(boss_card_1)
+	boss_layer.add_child(boss_card_1)
 	boss_card_1.move_to_front()
 	boss_pct_1 = boss_card_1.get_node("VBox/Pct")
 
@@ -680,7 +692,7 @@ func _creer_boss_ui() -> void:
 	boss_timer_lbl.add_theme_constant_override("outline_size", 8)
 	boss_timer_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 	boss_timer_lbl.visible = false
-	hud_layer.add_child(boss_timer_lbl)
+	boss_layer.add_child(boss_timer_lbl)
 	boss_timer_lbl.move_to_front()
 
 func _creer_carte_boss(titre: String, desc: String, couleur: Color, pos: Vector2) -> PanelContainer:
@@ -793,14 +805,20 @@ func _appliquer_malus_boss(gagnant: int, data: Dictionary) -> void:
 		for pseudo in WebSocketServer.equipes:
 			if WebSocketServer.equipes[pseudo] == equipe_idx:
 				membres.append(pseudo)
-		var nb_elimines := maxi(1, roundi(membres.size() * 0.1))
+		var nb_elimines := ceili(membres.size() * 0.1)
 		membres.shuffle()
+		var victimes := []
+		
 		for i in range(mini(nb_elimines, membres.size())):
 			var pseudo = membres[i]
+			victimes.append(pseudo)
 			WebSocketServer.equipes.erase(pseudo)
 			print("[Boss] Joueur éliminé du vote : ", pseudo)
 			# Notifier le joueur spécifiquement
 			WebSocketServer.envoyer_message("ELIMINE:" + pseudo)
+		
+		# Séquence visuelle sur Godot
+		await _sequence_visuelle_elimination(equipe_idx, victimes)
 		
 		# Synchroniser la liste globale des équipes avec le serveur Node
 		WebSocketServer.notifier_mises_a_jour_equipes()
@@ -821,6 +839,68 @@ func _secouer_camera(intensite: float, duree: float) -> void:
 		tw.tween_property(cam, "offset", target_offset, duree / float(steps))
 		intensite *= 0.8 # Diminue l'intensité progressivement
 	tw.tween_property(cam, "offset", pos_origine, 0.05)
+
+func _sequence_visuelle_elimination(equipe_idx: int, pseudos: Array) -> void:
+	if not boss_layer: return
+	
+	var sw := get_viewport().get_visible_rect().size.x
+	var sh := get_viewport().get_visible_rect().size.y
+	
+	# 1. Bande de couleur
+	var banner = ColorRect.new()
+	var team_color = WebSocketServer.COULEURS_EQUIPES[equipe_idx]
+	banner.color = team_color.darkened(0.2)
+	banner.color.a = 0.9
+	banner.custom_minimum_size = Vector2(sw, 150)
+	banner.set_anchors_preset(Control.PRESET_CENTER)
+	banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	banner.grow_vertical = Control.GROW_DIRECTION_BOTH
+	boss_layer.add_child(banner)
+	# S'assurer qu'il est bien au milieu (set_anchors_preset center met la position au milieu, - offset)
+	banner.position = Vector2(0, sh / 2.0 - 75.0)
+
+	var lbl_title = Label.new()
+	lbl_title.text = WebSocketServer.NOMS_EQUIPES[equipe_idx].to_upper() + " - ÉLIMINATION"
+	lbl_title.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	lbl_title.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	lbl_title.offset_top = 10
+	lbl_title.add_theme_font_size_override("font_size", 30)
+	lbl_title.add_theme_color_override("font_color", Color.WHITE)
+	lbl_title.add_theme_constant_override("outline_size", 8)
+	lbl_title.add_theme_color_override("font_outline_color", Color.BLACK)
+	banner.add_child(lbl_title)
+
+	# 2. Affichage séquentiel
+	for pseudo in pseudos:
+		var lbl_pseudo = Label.new()
+		lbl_pseudo.text = pseudo
+		lbl_pseudo.set_anchors_preset(Control.PRESET_CENTER)
+		lbl_pseudo.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		lbl_pseudo.grow_vertical = Control.GROW_DIRECTION_BOTH
+		lbl_pseudo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl_pseudo.position = Vector2(0, 50)
+		lbl_pseudo.size = Vector2(sw, 80)
+		lbl_pseudo.add_theme_font_size_override("font_size", 60)
+		lbl_pseudo.add_theme_color_override("font_color", Color.WHITE)
+		lbl_pseudo.add_theme_constant_override("outline_size", 12)
+		lbl_pseudo.add_theme_color_override("font_outline_color", Color.BLACK)
+		banner.add_child(lbl_pseudo)
+		
+		# Anim apparition
+		lbl_pseudo.modulate.a = 0
+		var tw = create_tween()
+		tw.tween_property(lbl_pseudo, "modulate:a", 1.0, 0.4)
+		await tw.finished
+		await get_tree().create_timer(1.0).timeout
+		
+		# Griser
+		var tw_gray = create_tween()
+		tw_gray.tween_property(lbl_pseudo, "modulate", Color(0.4, 0.4, 0.4, 0.7), 0.5)
+		await tw_gray.finished
+		await get_tree().create_timer(0.3).timeout
+		lbl_pseudo.queue_free()
+
+	banner.queue_free()
 
 func _sur_boss_vote(option: int) -> void:
 	if not boss_vote_actif:
