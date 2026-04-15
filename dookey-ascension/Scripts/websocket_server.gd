@@ -13,7 +13,7 @@ signal joueur_rejoint(pseudo: String)
 signal joueur_quitte(pseudo: String)
 signal code_salle_recu(code: String)
 signal boss_vote_recu(option: int, pseudo: String)
-
+signal majestueux_vote_recu(option: int, pseudo: String)
 var _ws := WebSocketPeer.new()
 var est_connecte := false
 # On pointe par défaut sur le serveur Render pour faciliter les tests depuis l'éditeur
@@ -164,6 +164,14 @@ func _traiter_message(message: String) -> void:
 			var option := parts[1].to_int()
 			var pseudo := parts[2]
 			boss_vote_recu.emit(option, pseudo)
+
+	# ── Format MAJESTUEUX_VOTE:0:pseudo ──────────────
+	elif message.begins_with("MAJESTUEUX_VOTE:"):
+		var parts := message.split(":")
+		if parts.size() >= 3:
+			var option := parts[1].to_int()
+			var pseudo := parts[2]
+			majestueux_vote_recu.emit(option, pseudo)
 
 # ── Envoie d'un message vers le serveur Node (qui relayera à tous les téléphones)
 func envoyer_message(msg: String) -> void:

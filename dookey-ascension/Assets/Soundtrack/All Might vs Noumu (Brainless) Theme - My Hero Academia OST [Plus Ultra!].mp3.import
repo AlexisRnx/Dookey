@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://d836luu60ayc"
+path="res://.godot/imported/All Might vs Noumu (Brainless) Theme - My Hero Academia OST [Plus Ultra!].mp3-470288637b7e0928242bc0a4c70ce140.mp3str"
+
+[deps]
+
+source_file="res://Assets/Soundtrack/All Might vs Noumu (Brainless) Theme - My Hero Academia OST [Plus Ultra!].mp3"
+dest_files=["res://.godot/imported/All Might vs Noumu (Brainless) Theme - My Hero Academia OST [Plus Ultra!].mp3-470288637b7e0928242bc0a4c70ce140.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

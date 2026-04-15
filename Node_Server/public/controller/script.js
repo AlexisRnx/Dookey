@@ -156,6 +156,65 @@ function initWebSocket(code, pseudo) {
             // Cacher l'écran boss, rétablir la barre
             document.getElementById('boss-vote-screen').style.display = 'none';
             document.getElementById('ecran-cliquable').style.display = '';
+            
+        // ----- DOOKEY MAJESTUEUX -----
+        } else if (data === 'MAJESTUEUX_EVENT_1') {
+            if (myTeamIndex === tourActuel) {
+                majestueuxAVote = false;
+                document.getElementById('maj-title').innerText = '👑 BÉNÉDICTION MAJESTUEUSE 👑';
+                const container = document.getElementById('maj-cards-container');
+                container.innerHTML = `
+                    <div id="maj-card-0" class="maj-card" onclick="voterMajestueux(0)">
+                        <h3>Avancer de 10 cases</h3>
+                        <p>Propulse le pion de 10 cases en avant (ignorant les pièges)</p>
+                    </div>
+                    <div id="maj-card-1" class="maj-card" onclick="voterMajestueux(1)">
+                        <h3>Punir un adversaire</h3>
+                        <p>Élimine 10% des joueurs d'une équipe adverse au choix</p>
+                    </div>
+                `;
+                document.getElementById('maj-vote-status').innerText = 'Touchez une option pour voter...';
+                document.getElementById('ecran-cliquable').style.display = 'none';
+                document.getElementById('majestueux-vote-screen').style.display = 'flex';
+            }
+        } else if (data.startsWith('MAJESTUEUX_EVENT_2:')) {
+            if (myTeamIndex === tourActuel) {
+                majestueuxAVote = false;
+                document.getElementById('maj-title').innerText = '🎯 CHOISISSEZ LA CIBLE 🎯';
+                const container = document.getElementById('maj-cards-container');
+                container.innerHTML = ''; // Clear previous
+                
+                // Format: MAJESTUEUX_EVENT_2:0=Equipe Rouge|2=Equipe Verte
+                const parts = data.split(':');
+                if (parts.length > 1) {
+                    const teams = parts[1].split('|');
+                    teams.forEach(t => {
+                        const [idx, name] = t.split('=');
+                        if (idx && name) {
+                            container.innerHTML += `
+                                <div id="maj-card-${idx}" class="maj-card" onclick="voterMajestueux(${idx})">
+                                    <h3>Cibler ${name}</h3>
+                                    <p>Élimine 10% de leurs membres</p>
+                                </div>
+                            `;
+                        }
+                    });
+                }
+                document.getElementById('maj-vote-status').innerText = 'Sélectionnez l\'équipe à punir...';
+            }
+        } else if (data.startsWith('MAJESTUEUX_RESULT:')) {
+            const gagnant = parseInt(data.split(':')[1]);
+            document.querySelectorAll('.maj-card').forEach(c => {
+                if (c.id === 'maj-card-' + gagnant) c.classList.add('winner');
+                else c.classList.add('loser');
+            });
+            document.getElementById('maj-vote-status').innerText = 'Choix verrouillé...';
+            
+        } else if (data === 'MAJESTUEUX_END') {
+            document.getElementById('majestueux-vote-screen').style.display = 'none';
+            document.getElementById('ecran-cliquable').style.display = '';
+
+        // ----- ELIMINATIONS -----
         } else if (data.startsWith('ELIMINE:')) {
             const victim = data.split(':')[1];
             const myPseudo = sessionStorage.getItem('dookeyPseudo');
@@ -292,18 +351,31 @@ document.getElementById('ecran-cliquable').onclick = () => {
     }
 };
 
-// ── Vote Boss ────────────────────────────────────────────────────────────────
+// ── Vote Boss ────────────────────────────────────────────────────────────────// Voter Boss (0: recul, 1: perdre équipe)
+let bossAVote = false;
 function voterBoss(option) {
-    if (bossAVote || !isGameScreenActive || !socket || socket.readyState !== WebSocket.OPEN) return;
+    if (bossAVote) return;
+    const myPseudo = sessionStorage.getItem('dookeyPseudo');
+    if (!myPseudo) return;
+    
+    // Le serveur Godot vérifiera de toute façon si le pseudo a le droit
     bossAVote = true;
-
-    // Marquer la carte choisie
     document.getElementById('boss-card-' + option).classList.add('voted');
-    document.getElementById('boss-vote-status').innerText = '✅ Vote enregistré !';
+    socket.send(`BOSS_VOTE:${option}:${myPseudo}`);
+    document.getElementById('boss-vote-status').innerText = "Attente des résultats...";
+}
 
-    // Désactiver les clics sur les deux cartes
-    document.getElementById('boss-card-0').style.pointerEvents = 'none';
-    document.getElementById('boss-card-1').style.pointerEvents = 'none';
-
-    socket.send('BOSS_VOTE:' + option);
+// Voter Majestueux
+let majestueuxAVote = false;
+function voterMajestueux(option) {
+    if (majestueuxAVote) return;
+    const myPseudo = sessionStorage.getItem('dookeyPseudo');
+    if (!myPseudo) return;
+    
+    majestueuxAVote = true;
+    const card = document.getElementById('maj-card-' + option);
+    if (card) card.classList.add('voted');
+    
+    socket.send(`MAJESTUEUX_VOTE:${option}:${myPseudo}`);
+    document.getElementById('maj-vote-status').innerText = "Attente des résultats...";
 }

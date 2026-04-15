@@ -30,8 +30,22 @@ const BOSS_DIALOGUES : Array[String] = [
 	"Vous pensiez atteindre le sommet ? Quel optimisme pathétique...",
 	"Le désespoir a un goût délicieux. Choisissez votre supplice !"
 ]
+const BOSS_AUDIO      := preload("res://Assets/Soundtrack/One Punch Man OST  - Crisis.mp3")
+
+# Case Dookey Majestueux
+const MAJESTUEUX_TILE := Vector2i(1, 2)
+const MAJ_TEXTURE     := preload("res://Assets/Dookey_Majestueux.png")
+const MAJ_DIALOGUES : Array[String] = [
+	"Votre bravoure résonne. Choisissez votre bénédiction.",
+	"L'ascension est à votre portée. Quelle est votre volonté ?",
+	"Je suis Dookey Majestueux. Avancez, ou punissez les faibles.",
+	"Le sommet vous appelle. Un don ou un châtiment, à vous de choisir.",
+	"Une once de puissance divine vous est accordée. Faites-en bon usage."
+]
+const MAJ_AUDIO       := preload("res://Assets/Soundtrack/All Might vs Noumu (Brainless) Theme - My Hero Academia OST [Plus Ultra!].mp3")
 
 # ═══════════════════════════════════════════════════════════════════════════
+
 # DONNÉES INTERNES
 # ═══════════════════════════════════════════════════════════════════════════
 var parcours       : Array[Vector2i]   = []
@@ -67,8 +81,15 @@ var boss_card_0   : PanelContainer = null
 var boss_card_1   : PanelContainer = null
 var boss_timer_lbl: Label        = null
 var boss_layer     : CanvasLayer  = null
+var boss_audio_player : AudioStreamPlayer = null
+
+# Majestueux
+var maj_votes      := {}
+var maj_vote_actif := false
+var maj_audio_player : AudioStreamPlayer = null
 
 # HUD équipes (panneau top-right)
+
 var nb_joueurs_debut    : Dictionary = {}  # {equipe_idx -> nb initial}
 var panel_equipes_hud   : PanelContainer = null
 var labels_equipes_hud  : Array = []
@@ -347,13 +368,17 @@ func _avancer_pion(nb: int) -> void:
 	# Pause respiratoire
 	await get_tree().create_timer(0.8).timeout
 
-	# 3. Vérification UNIQUE du Boss sur la position finale (après tous les effets)
+	# 3. Vérification UNIQUE du Boss ou Majestueux sur la position finale (après tous les effets)
 	var atlas_final_pos = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
 	if atlas_final_pos == BOSS_TILE:
 		print("💀 [%s] Tombe sur la case DOOKEY BOSS !" % data["nom"])
 		await _sequence_dookey_boss(data)
+	elif atlas_final_pos == MAJESTUEUX_TILE:
+		print("👑 [%s] Tombe sur la case DOOKEY MAJESTUEUX !" % data["nom"])
+		await _sequence_dookey_majestueux(data)
 
 	en_deplacement = false
+
 	
 	# 4. Vérifier si la tuile finale est une case "Rejoue" (vert)
 	#    Note : on re-lit l'atlas car _appliquer_malus_boss peut avoir déplacé le pion
@@ -583,6 +608,13 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 		WebSocketServer.boss_vote_recu.connect(_sur_boss_vote)
 	WebSocketServer.envoyer_message("BOSS_EVENT")
 
+	# 0. Lancer la musique du boss
+	boss_audio_player = AudioStreamPlayer.new()
+	boss_audio_player.stream = BOSS_AUDIO
+	boss_audio_player.volume_db = -12.0
+	add_child(boss_audio_player)
+	boss_audio_player.play()
+
 	_creer_boss_ui()
 
 	# 1. Boss tombe du ciel
@@ -657,7 +689,14 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	tw_sortie.tween_property(boss_sprite, "position:y", -350.0, 0.9)
 	await tw_sortie.finished
 
-	# 9. Nettoyage
+	# 9. Couper la musique en douceur
+	if is_instance_valid(boss_audio_player):
+		var tw_audio = create_tween()
+		tw_audio.tween_property(boss_audio_player, "volume_db", -40.0, 0.8)
+		tw_audio.chain().tween_callback(boss_audio_player.queue_free)
+		boss_audio_player = null
+
+	# 10. Nettoyage
 	WebSocketServer.envoyer_message("BOSS_END")
 	if WebSocketServer.boss_vote_recu.is_connected(_sur_boss_vote):
 		WebSocketServer.boss_vote_recu.disconnect(_sur_boss_vote)
@@ -673,7 +712,199 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	boss_timer_lbl = null
 	boss_vote_actif = false
 
+# ═══════════════════════════════════════════════════════════════════════════
+# DOOKEY MAJESTUEUX SÉQUENCE
+# ═══════════════════════════════════════════════════════════════════════════
+func _sequence_dookey_majestueux(data: Dictionary) -> void:
+	chrono_actif = false
+	temp_label_chrono.visible = false
+	
+	maj_votes.clear()
+	maj_vote_actif = true
+	var est_bot : bool = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
+	
+	if not WebSocketServer.majestueux_vote_recu.is_connected(_sur_majestueux_vote):
+		WebSocketServer.majestueux_vote_recu.connect(_sur_majestueux_vote)
+	
+	# Réutiliser l'UI du Boss
+	_creer_boss_ui()
+	boss_sprite.texture = MAJ_TEXTURE
+	
+	maj_audio_player = AudioStreamPlayer.new()
+	maj_audio_player.stream = MAJ_AUDIO
+	maj_audio_player.volume_db = -5.0
+	add_child(maj_audio_player)
+	maj_audio_player.play(124.0)
+	
+	WebSocketServer.envoyer_message("MAJESTUEUX_EVENT_1")
+	
+	# Modifier les cartes pour les options majestueuses
+	var vb0 = boss_card_0.get_node("VBox")
+	vb0.get_child(0).text = "Avancer de 10 cases"
+	vb0.get_child(1).text = "Propulse le pion en avant sans danger."
+	var s0 = boss_card_0.get_theme_stylebox("panel", "PanelContainer") as StyleBoxFlat
+	s0.bg_color = Color(0.0, 0.2, 0.4, 0.9)
+	s0.border_color = Color(0.0, 0.8, 1.0, 0.8)
+	
+	var vb1 = boss_card_1.get_node("VBox")
+	vb1.get_child(0).text = "Punir un adversaire"
+	vb1.get_child(1).text = "Élimine 10% des joueurs d'une cible."
+	var s1 = boss_card_1.get_theme_stylebox("panel", "PanelContainer") as StyleBoxFlat
+	s1.bg_color = Color(0.0, 0.2, 0.4, 0.9)
+	s1.border_color = Color(0.0, 0.8, 1.0, 0.8)
+	
+	# Animation d'entrée
+	var sw := get_viewport().get_visible_rect().size.x
+	boss_sprite.position = Vector2(sw / 2.0 - 100.0, -260.0)
+	var tw_entree = create_tween()
+	tw_entree.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw_entree.tween_property(boss_sprite, "position:y", 20.0, 1.8)
+	await tw_entree.finished
+	
+	# Dialogue
+	var dial_panel : PanelContainer = boss_sprite.get_parent().get_node_or_null("BossDialPanel")
+	if dial_panel:
+		dial_panel.get_child(0).text = MAJ_DIALOGUES[randi() % MAJ_DIALOGUES.size()]
+		dial_panel.visible = true
+		await get_tree().create_timer(3.0).timeout
+		dial_panel.visible = false
+	
+	boss_card_0.visible = true
+	boss_card_1.visible = true
+	boss_timer_lbl.visible = true
+	
+	# PHASE 1 : Vote
+	boss_chrono_actif = true
+	boss_chrono_temps = 10.0
+	maj_votes = {0: 0, 1: 0}
+	
+	if est_bot:
+		maj_votes[0] = 1
+		await get_tree().create_timer(1.0).timeout
+	else:
+		await get_tree().create_timer(10.5).timeout
+	
+	boss_chrono_actif = false
+	boss_timer_lbl.visible = false
+	
+	var gagnant_ph1 := 0
+	if maj_votes[0] + maj_votes.get(1,0) == 0:
+		gagnant_ph1 = randi() % 2
+	elif maj_votes.get(1,0) > maj_votes[0]:
+		gagnant_ph1 = 1
+	
+	WebSocketServer.envoyer_message("MAJESTUEUX_RESULT:" + str(gagnant_ph1))
+	_illuminer_carte_boss(gagnant_ph1)
+	await get_tree().create_timer(2.0).timeout
+	
+	if gagnant_ph1 == 0:
+		# Bénédiction +10 
+		boss_card_0.visible = false
+		boss_card_1.visible = false
+		_sortie_majestueux()
+		await get_tree().create_timer(1.0).timeout
+		var case_avant = data["case"]
+		await _deplacer_pion_relatif(data, 10, true)
+		if case_avant == data["case"]:
+			print("[Majestueux] Pion n'a pas bougé (déjà à la fin ?)")
+	else:
+		# PHASE 2 : Ciblage
+		boss_card_0.visible = false
+		boss_card_1.visible = false
+		
+		var cibles = []
+		var strings_ui = []
+		for i in range(4):
+			if i != tour_actuel:
+				cibles.append(i)
+				strings_ui.append(str(i) + "=" + noms_equipes[i])
+		
+		if cibles.is_empty():
+			_sortie_majestueux()
+			await get_tree().create_timer(1.0).timeout
+			return
+			
+		WebSocketServer.envoyer_message("MAJESTUEUX_EVENT_2:" + "|".join(strings_ui))
+		
+		if dial_panel:
+			dial_panel.get_child(0).text = "Regardez vos manettes pour choisir l'équipe cible !"
+			dial_panel.visible = true
+			
+		maj_votes.clear()
+		for c in cibles:
+			maj_votes[c] = 0
+			
+		boss_timer_lbl.visible = true
+		boss_chrono_actif = true
+		boss_chrono_temps = 10.0
+		
+		if est_bot:
+			maj_votes[cibles[randi() % cibles.size()]] = 1
+			await get_tree().create_timer(1.0).timeout
+		else:
+			await get_tree().create_timer(10.5).timeout
+		
+		boss_chrono_actif = false
+		boss_timer_lbl.visible = false
+		
+		var cible_elue = cibles[0]
+		var max_v = -1
+		for c in cibles:
+			if maj_votes[c] > max_v:
+				max_v = maj_votes[c]
+				cible_elue = c
+				
+		WebSocketServer.envoyer_message("MAJESTUEUX_RESULT:" + str(cible_elue))
+		
+		if dial_panel:
+			dial_panel.get_child(0).text = "L'équipe adverse subit la colère céleste !"
+		
+		await get_tree().create_timer(2.0).timeout
+		
+		WebSocketServer.envoyer_message("VIBRER_TOUS")
+		await _eliminer_10_pourcent(cible_elue)
+		
+		if dial_panel: dial_panel.visible = false
+		_sortie_majestueux()
+
+func _sortie_majestueux() -> void:
+	var tw_sortie = create_tween()
+	tw_sortie.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw_sortie.tween_property(boss_sprite, "position:y", -350.0, 1.2)
+	await tw_sortie.finished
+	
+	if is_instance_valid(maj_audio_player):
+		var tw_audio = create_tween()
+		tw_audio.tween_property(maj_audio_player, "volume_db", -40.0, 0.8)
+		tw_audio.chain().tween_callback(maj_audio_player.queue_free)
+		maj_audio_player = null
+		
+	WebSocketServer.envoyer_message("MAJESTUEUX_END")
+	if WebSocketServer.majestueux_vote_recu.is_connected(_sur_majestueux_vote):
+		WebSocketServer.majestueux_vote_recu.disconnect(_sur_majestueux_vote)
+
+	
+	if is_instance_valid(boss_layer):
+		boss_layer.queue_free()
+	boss_layer = null
+	boss_overlay = null
+	boss_sprite = null
+	boss_card_0 = null
+	boss_card_1 = null
+	boss_timer_lbl = null
+	maj_vote_actif = false
+
+func _sur_majestueux_vote(option: int, pseudo: String) -> void:
+	if not maj_vote_actif: return
+	if WebSocketServer.equipes.get(pseudo, -1) != tour_actuel: return
+	
+	if maj_votes.has(option):
+		maj_votes[option] += 1
+		print("[Majestueux] +1 vote pour option %d" % option)
+
+
 func _creer_boss_ui() -> void:
+
 	var sw := get_viewport().get_visible_rect().size.x
 	var sh := get_viewport().get_visible_rect().size.y
 
@@ -881,43 +1112,55 @@ func _appliquer_malus_boss(gagnant: int, data: Dictionary) -> void:
 		for pseudo in WebSocketServer.equipes:
 			if WebSocketServer.equipes[pseudo] == equipe_idx:
 				membres.append(pseudo)
-		var nb_elimines := ceili(membres.size() * 0.1)
 		
 		# Si aucun joueur dans l'équipe, le vote "10%" ne peut pas s'appliquer.
 		# Fallback automatique vers le recul de 10 cases.
-		if membres.is_empty():
+		if membres.is_empty() and nb_joueurs_debut.get(equipe_idx, 0) > 0:
 			print("[Boss] Aucun joueur dans l'équipe %d — Fallback vers RECUL de 10 cases." % equipe_idx)
 			await _deplacer_pion_relatif(data, -10, true)
 			return
+			
+		await _eliminer_10_pourcent(equipe_idx)
+
+func _eliminer_10_pourcent(equipe_idx: int) -> void:
+	var membres := []
+	for pseudo in WebSocketServer.equipes:
+		if WebSocketServer.equipes[pseudo] == equipe_idx:
+			membres.append(pseudo)
+			
+	var nb_elimines := ceili(membres.size() * 0.1)
+	if nb_elimines == 0:
+		print("[Elimination] Personne à éliminer pour l'équipe %d." % equipe_idx)
+		return
 		
-		membres.shuffle()
-		var victimes := []
-		
-		for i in range(mini(nb_elimines, membres.size())):
-			var pseudo = membres[i]
-			victimes.append(pseudo)
-			WebSocketServer.equipes.erase(pseudo)
-			print("[Boss] Joueur éliminé du vote : ", pseudo)
-			# Notifier le joueur spécifiquement
-			WebSocketServer.envoyer_message("ELIMINE:" + pseudo)
-		
-		# Séquence visuelle sur Godot
-		await _sequence_visuelle_elimination(equipe_idx, victimes)
-		
-		# Si l'équipe (non-bot) n'a plus de joueurs → explosion du pion !
-		var restants := 0
-		for p in WebSocketServer.equipes:
-			if WebSocketServer.equipes[p] == equipe_idx:
-				restants += 1
-		if restants == 0 and nb_joueurs_debut.get(equipe_idx, 0) > 0:
-			await _exploser_pion(equipe_idx)
-		
-		# Synchroniser la liste globale des équipes avec le serveur Node
-		WebSocketServer.notifier_mises_a_jour_equipes()
-		_mettre_a_jour_panel_equipes()  # Mettre à jour le compteur d'équipe
-		
-		var msg_elim = "BOSS_ELIMINES:" + str(nb_elimines)
-		WebSocketServer.envoyer_message(msg_elim)
+	membres.shuffle()
+	var victimes := []
+	
+	for i in range(mini(nb_elimines, membres.size())):
+		var pseudo = membres[i]
+		victimes.append(pseudo)
+		WebSocketServer.equipes.erase(pseudo)
+		print("[Elimination] Joueur éliminé : ", pseudo)
+		# Notifier le joueur spécifiquement
+		WebSocketServer.envoyer_message("ELIMINE:" + pseudo)
+	
+	# Séquence visuelle sur Godot
+	await _sequence_visuelle_elimination(equipe_idx, victimes)
+	
+	# Si l'équipe (non-bot) n'a plus de joueurs → explosion du pion !
+	var restants := 0
+	for p in WebSocketServer.equipes:
+		if WebSocketServer.equipes[p] == equipe_idx:
+			restants += 1
+	if restants == 0 and nb_joueurs_debut.get(equipe_idx, 0) > 0:
+		await _exploser_pion(equipe_idx)
+	
+	# Synchroniser la liste globale des équipes avec le serveur Node
+	WebSocketServer.notifier_mises_a_jour_equipes()
+	_mettre_a_jour_panel_equipes()  # Mettre à jour le compteur d'équipe
+	
+	var msg_elim = "BOSS_ELIMINES:" + str(nb_elimines)
+	WebSocketServer.envoyer_message(msg_elim)
 
 # ───────────────────────────────────────────────────────────────────────────
 # EFFETS VISUELS

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bi6inemesavo4"
+path="res://.godot/imported/One Punch Man OST  - Crisis.mp3-1fef4ce0ff4bb48e81c53de8455078a0.mp3str"
+
+[deps]
+
+source_file="res://Assets/Soundtrack/One Punch Man OST  - Crisis.mp3"
+dest_files=["res://.godot/imported/One Punch Man OST  - Crisis.mp3-1fef4ce0ff4bb48e81c53de8455078a0.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
