@@ -798,6 +798,9 @@ func _sequence_portail(data: Dictionary) -> bool:
 		await _afficher_banderole_portail("GAGNÉ !")
 		if tour_actuel in equipes_bloquees_portail:
 			equipes_bloquees_portail.erase(tour_actuel)
+		
+		# Victoire immédiate si le mini-jeu est réussi !
+		await _sequence_victoire(pions[tour_actuel]["nom"])
 	else:
 		await _afficher_banderole_portail("ÉCHEC !")
 		if not tour_actuel in equipes_bloquees_portail:
