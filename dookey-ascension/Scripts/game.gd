@@ -21,7 +21,7 @@ const EFFETS_CASES: Dictionary = {
 }
 
 # Case du Boss
-const BOSS_TILE       := Vector2i(0, 2)
+const BOSS_TILE       := Vector2i(2, 2)
 const BOSS_TEXTURE    := preload("res://Assets/Dookey_Boss.png")
 const BOSS_DIALOGUES : Array[String] = [
 	"L'ascension est un privilège que je révoque... MAINTENANT.",
@@ -289,7 +289,7 @@ func _construire_parcours() -> void:
 	const ATLAS_AUTORISES: Array[Vector2i] = [
 		Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0),
 		Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1),
-		Vector2i(0, 2), Vector2i(1, 2)
+		Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2)
 	]
 
 	var toutes_cellules: Array = Array(layer_cases.get_used_cells())
@@ -601,6 +601,11 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	chrono_actif = false
 	temp_label_chrono.visible = false
 	
+	# Cacher le sprite de la carte pendant la séquence géante
+	var map_boss = get_node_or_null("DookeyBoss")
+	if is_instance_valid(map_boss):
+		map_boss.visible = false
+	
 	boss_votes = {0: 0, 1: 0}
 	boss_vote_actif = true
 	# Garde anti-double-connexion du signal
@@ -711,6 +716,11 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	boss_pct_1 = null
 	boss_timer_lbl = null
 	boss_vote_actif = false
+	
+	# Réafficher le sprite sur la carte une fois l'événement fini
+	var map_boss_fin = get_node_or_null("DookeyBoss")
+	if is_instance_valid(map_boss_fin):
+		map_boss_fin.visible = true
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DOOKEY MAJESTUEUX SÉQUENCE
@@ -1308,7 +1318,7 @@ func _mettre_a_jour_panel_equipes() -> void:
 		if i == tour_actuel:
 			# Équipe active : couleur vive + flèche
 			lbl.add_theme_color_override("font_color", couleur_equipe.lightened(0.3))
-			lbl.text = "▶ %s  %s" % [nom_equipe, compteur]
+			lbl.text = ">> %s  %s" % [nom_equipe, compteur]
 		else:
 			# Équipes inactives : blanc
 			lbl.add_theme_color_override("font_color", Color.WHITE)

@@ -35,11 +35,6 @@ function attemptFillCode() {
         inputPseudo.value = savedPseudo;
     }
     
-    // DEBUG EXTRÊME : Afficher l'URL que le téléphone voit vraiment
-    errorLabel.style.display = "block";
-    errorLabel.style.color = "#ffeb3b"; // Yellow
-    errorLabel.innerText = "Debug URL: " + window.location.href;
-    
     return cp;
 }
 
