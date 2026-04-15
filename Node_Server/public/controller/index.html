@@ -234,6 +234,73 @@
 		}
 
 
+		/* PORTAIL QTE SCREEN */
+		#portail-screen {
+			display: none;
+			position: fixed;
+			top: 0; left: 0;
+			width: 100%; height: 100%;
+			background: radial-gradient(circle, #2a0a2a 0%, #110011 100%);
+			z-index: 400;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 20px;
+			box-sizing: border-box;
+		}
+		#portail-screen h2 {
+			font-size: 2rem;
+			color: #d881fc;
+			margin: 0;
+			text-shadow: 0 0 15px #ba55d3;
+		}
+		#portail-screen p {
+			font-size: 1.1rem;
+			color: #ccc;
+			margin-top: 10px;
+			margin-bottom: 30px;
+		}
+		.qte-container {
+			width: 90%;
+			max-width: 400px;
+			height: 50px;
+			background: #333;
+			border: 3px solid #555;
+			border-radius: 25px;
+			position: relative;
+			overflow: hidden;
+			box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+		}
+		.qte-safe-zone {
+			position: absolute;
+			left: 35%; /* Modifiable en JS pour la difficulté */
+			width: 30%; /* Modifiable en JS pour la difficulté */
+			height: 100%;
+			background: rgba(0, 255, 0, 0.4);
+			border-left: 2px solid #0f0;
+			border-right: 2px solid #0f0;
+			box-shadow: 0 0 15px rgba(0, 255, 0, 0.3) inset;
+		}
+		.qte-cursor {
+			position: absolute;
+			left: 0%;
+			top: -2px;
+			width: 6px;
+			height: 54px;
+			background: #fff;
+			box-shadow: 0 0 12px #fff, 0 0 15px #ff0055;
+		}
+		.portail-flash {
+			position: absolute;
+			top: 0; left: 0;
+			width: 100%; height: 100%;
+			z-index: 401;
+			pointer-events: none;
+			opacity: 0;
+			transition: opacity 0.3s;
+		}
+
 	</style>
 </head>
 <body>
@@ -312,6 +379,18 @@
 			<div class="skull-icon">☠️</div>
 			<h1>DOMMAGE !</h1>
 			<p>Dookey Boss vous a éliminé de l'équipe.<br>Vous ne pouvez plus participer aux votes.</p>
+		</div>
+
+		<!-- PORTAIL QTE OVERLAY -->
+		<div id="portail-screen">
+			<div id="portail-flash" class="portail-flash"></div>
+			<h2>ÉPREUVE DU PORTAIL</h2>
+			<p>Appuyez sur l'écran quand le curseur est dans la zone verte !</p>
+			<div id="qte-container" class="qte-container">
+				<div id="qte-safe-zone" class="qte-safe-zone"></div>
+				<div id="qte-cursor" class="qte-cursor"></div>
+			</div>
+			<p id="portail-status" style="margin-top: 25px; font-weight: bold; font-size: 1.2rem;"></p>
 		</div>
     </div>
 

@@ -233,7 +233,7 @@ wss.on('connection', (ws, req) => {
             // Forward controller messages only to the Godot game client in this room
             if (room.gameWs && room.gameWs.readyState === WebSocket.OPEN) {
                 let finalMsg = msgStr;
-                if (msgStr.startsWith('BOSS_VOTE:')) {
+                if (msgStr.startsWith('BOSS_VOTE:') || msgStr.startsWith('PORTAIL_QTE_VOTE:')) {
                     finalMsg += ":" + pseudo;
                 }
                 room.gameWs.send(finalMsg);

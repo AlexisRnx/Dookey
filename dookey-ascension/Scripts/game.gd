@@ -21,7 +21,7 @@ const EFFETS_CASES: Dictionary = {
 }
 
 # Case du Boss
-const BOSS_TILE       := Vector2i(2, 2)
+const BOSS_TILE       := Vector2i(0, 2)
 const BOSS_TEXTURE    := preload("res://Assets/Dookey_Boss.png")
 const BOSS_DIALOGUES : Array[String] = [
 	"L'ascension est un privilège que je révoque... MAINTENANT.",
@@ -43,6 +43,9 @@ const MAJ_DIALOGUES : Array[String] = [
 	"Une once de puissance divine vous est accordée. Faites-en bon usage."
 ]
 const MAJ_AUDIO       := preload("res://Assets/Soundtrack/All Might vs Noumu (Brainless) Theme - My Hero Academia OST [Plus Ultra!].mp3")
+
+# Case Portail (Mini-Jeu)
+const PORTAIL_TILE    := Vector2i(2, 2)
 
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -87,6 +90,11 @@ var boss_audio_player : AudioStreamPlayer = null
 var maj_votes      := {}
 var maj_vote_actif := false
 var maj_audio_player : AudioStreamPlayer = null
+
+# Portail QTE
+var equipes_bloquees_portail : Array[int] = []
+var portail_votes : Dictionary = {"success": 0, "fail": 0, "pseudos": []}
+var portail_actif : bool = false
 
 # HUD équipes (panneau top-right)
 
@@ -212,6 +220,7 @@ func _creer_hud() -> void:
 	# WebSocketServer est un Autoload enregistré dans project.godot
 	WebSocketServer.votes_recus.connect(_sur_votes_recus)
 	WebSocketServer.lancer_roue_web.connect(_sur_lancer_roue_web)
+	WebSocketServer.portail_qte_recu.connect(_sur_portail_qte_recu)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Affiche / cache la roue
@@ -376,6 +385,9 @@ func _avancer_pion(nb: int) -> void:
 	elif atlas_final_pos == MAJESTUEUX_TILE:
 		print("👑 [%s] Tombe sur la case DOOKEY MAJESTUEUX !" % data["nom"])
 		await _sequence_dookey_majestueux(data)
+	elif atlas_final_pos == PORTAIL_TILE:
+		print("🌀 [%s] Entre dans le PORTAIL VIOLET !" % data["nom"])
+		await _sequence_portail(data)
 
 	en_deplacement = false
 
@@ -569,6 +581,11 @@ func _afficher_tour() -> void:
 	# Banderole d'abord, puis suite selon bot ou humain
 	await _animer_debut_tour(tour_actuel)
 
+	if tour_actuel in equipes_bloquees_portail:
+		print("[Portail] L'équipe est bloquée ! Déclenchement forcé du mini-jeu.")
+		await _sequence_portail(pions[tour_actuel])
+		return
+
 	var est_bot_tour : bool = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
 
 	if est_bot_tour:
@@ -721,6 +738,100 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	var map_boss_fin = get_node_or_null("DookeyBoss")
 	if is_instance_valid(map_boss_fin):
 		map_boss_fin.visible = true
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PORTAIL VIOLET SÉQUENCE
+# ═══════════════════════════════════════════════════════════════════════════
+func _sequence_portail(data: Dictionary) -> void:
+	# Arrêter les chronos
+	chrono_actif = false
+	temp_label_chrono.visible = false
+	
+	portail_votes = {"success": 0, "fail": 0, "pseudos": []}
+	portail_actif = true
+	WebSocketServer.envoyer_message("PORTAIL_QTE_START")
+	
+	# Afficher un petit chrono ou message
+	hud_label.text = "ÉPREUVE DU PORTAIL EN COURS..."
+	
+	# Attendre 8 secondes
+	await get_tree().create_timer(8.0).timeout
+	
+	portail_actif = false
+	WebSocketServer.envoyer_message("PORTAIL_QTE_END")
+	
+	# Calcul du résultat
+	var total_votes = portail_votes["success"] + portail_votes["fail"]
+	var a_gagne = false
+	
+	if total_votes == 0:
+		# Si personne n'a cliqué, on considère un échec (ou on peut mettre 50/50)
+		a_gagne = false
+	else:
+		# Gagne si 50% ou plus de réussite
+		a_gagne = (float(portail_votes["success"]) / float(total_votes)) >= 0.5
+		
+	if a_gagne:
+		await _afficher_banderole_portail("GAGNÉ !")
+		if tour_actuel in equipes_bloquees_portail:
+			equipes_bloquees_portail.erase(tour_actuel)
+		
+		# Après une victoire, on passe normalement au tour suivant
+		tour_actuel = (tour_actuel + 1) % pions.size()
+	else:
+		await _afficher_banderole_portail("ÉCHEC !")
+		if not tour_actuel in equipes_bloquees_portail:
+			equipes_bloquees_portail.append(tour_actuel)
+		
+		# En cas d'échec, on finit le tour ici (donc on change de tour) 
+		# mais au prochain tour de CETTE équipe, ils re-déclencheront le portail dans _afficher_tour
+		tour_actuel = (tour_actuel + 1) % pions.size()
+	
+	_sauvegarder_partie()
+	_basculer_camera()
+	_afficher_tour()
+	_mettre_a_jour_hud()
+
+func _sur_portail_qte_recu(succes: bool, pseudo: String) -> void:
+	if not portail_actif: return
+	if pseudo in portail_votes["pseudos"]: return # Un seul vote autorisé
+	
+	# Vérifier que le joueur appartient à l'équipe actuelle
+	if WebSocketServer.equipes.has(pseudo) and WebSocketServer.equipes[pseudo] == tour_actuel:
+		portail_votes["pseudos"].append(pseudo)
+		if succes:
+			portail_votes["success"] += 1
+		else:
+			portail_votes["fail"] += 1
+		print("[Portail] Vote de %s : %s" % [pseudo, "SUCCESS" if succes else "FAIL"])
+
+func _afficher_banderole_portail(texte: String) -> void:
+	var sw := get_viewport().get_visible_rect().size.x
+	var sh := get_viewport().get_visible_rect().size.y
+	
+	var layer = CanvasLayer.new()
+	layer.layer = 20
+	add_child(layer)
+	
+	var rect = ColorRect.new()
+	rect.color = Color(0, 0, 0, 0.7)
+	rect.size = Vector2(sw, 150)
+	rect.position = Vector2(0, (sh - 150) / 2.0)
+	layer.add_child(rect)
+	
+	var lbl = Label.new()
+	lbl.text = texte
+	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 80)
+	lbl.add_theme_color_override("font_color", Color.GREEN if "GAGNÉ" in texte else Color.RED)
+	lbl.add_theme_constant_override("outline_size", 15)
+	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+	rect.add_child(lbl)
+	
+	await get_tree().create_timer(2.0).timeout
+	layer.queue_free()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DOOKEY MAJESTUEUX SÉQUENCE

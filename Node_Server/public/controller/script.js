@@ -58,7 +58,13 @@ let direction = 1;
 let estArrete = false;
 let estVerrouille = false;
 let bossAVote = false;  // True quand le joueur a déjà voté pour le boss
-const vitesse = 1.5; 
+let portailAClike = false; // Empêche de cliquer plusieurs fois au QTE
+let qteActive = false;
+let qtePosition = 0;
+let qteDirection = 1;
+let qteAnimId = null;
+const qteVitesse = 2.2; 
+
 const curseur = document.getElementById('curseur');
 const cases = document.querySelectorAll('.case-score');
 
@@ -187,6 +193,14 @@ function initWebSocket(code, pseudo) {
             // Cacher l'écran boss, rétablir la barre
             document.getElementById('boss-vote-screen').style.display = 'none';
             document.getElementById('ecran-cliquable').style.display = '';
+            
+        // ----- PORTAIL QTE -----
+        } else if (data === 'PORTAIL_QTE_START') {
+            if (myTeamIndex === tourActuel) {
+                lancerPortailQTE();
+            }
+        } else if (data === 'PORTAIL_QTE_END') {
+            stopPortailQTE();
             
         // ----- DOOKEY MAJESTUEUX -----
         } else if (data === 'MAJESTUEUX_EVENT_1') {
@@ -409,3 +423,71 @@ function voterMajestueux(option) {
     socket.send(`MAJESTUEUX_VOTE:${option}:${myPseudo}`);
     document.getElementById('maj-vote-status').innerText = "Attente des résultats...";
 }
+
+// ── Portail QTE ──────────────────────────────────────────────────────────────
+function lancerPortailQTE() {
+    qteActive = true;
+    portailAClike = false;
+    qtePosition = Math.random() * 100;
+    document.getElementById('portail-screen').style.display = 'flex';
+    document.getElementById('portail-status').innerText = "À VOUS !";
+    document.getElementById('portail-status').style.color = "white";
+    document.getElementById('portail-flash').style.opacity = "0";
+    document.getElementById('ecran-cliquable').style.display = 'none';
+    
+    animerPortail();
+}
+
+function stopPortailQTE() {
+    qteActive = false;
+    if (qteAnimId) cancelAnimationFrame(qteAnimId);
+    document.getElementById('portail-screen').style.display = 'none';
+    document.getElementById('ecran-cliquable').style.display = '';
+}
+
+function animerPortail() {
+    if (!qteActive || portailAClike) return;
+
+    qtePosition += qteVitesse * qteDirection;
+    if (qtePosition >= 100) { qtePosition = 100; qteDirection = -1; }
+    else if (qtePosition <= 0) { qtePosition = 0; qteDirection = 1; }
+
+    document.getElementById('qte-cursor').style.left = qtePosition + "%";
+    qteAnimId = requestAnimationFrame(animerPortail);
+}
+
+document.getElementById('portail-screen').onclick = () => {
+    if (!qteActive || portailAClike) return;
+    
+    portailAClike = true;
+    
+    // Vérifier collision
+    const cursor = document.getElementById('qte-cursor');
+    const safeZone = document.getElementById('qte-safe-zone');
+    const container = document.getElementById('qte-container');
+    
+    const cursorRect = cursor.getBoundingClientRect();
+    const safeRect = safeZone.getBoundingClientRect();
+    
+    // On vérifie si le centre du curseur est dans la zone
+    const cursorCenter = cursorRect.left + cursorRect.width / 2;
+    const isSuccess = (cursorCenter >= safeRect.left && cursorCenter <= safeRect.right);
+    
+    const flash = document.getElementById('portail-flash');
+    const status = document.getElementById('portail-status');
+    
+    if (isSuccess) {
+        status.innerText = "RÉUSSI !";
+        status.style.color = "#2ecc71"; // Green
+        flash.style.background = "rgba(46, 204, 113, 0.4)";
+        socket.send("PORTAIL_QTE_VOTE:1");
+    } else {
+        status.innerText = "ÉCHEC...";
+        status.style.color = "#e74c3c"; // Red
+        flash.style.background = "rgba(231, 76, 60, 0.4)";
+        socket.send("PORTAIL_QTE_VOTE:0");
+    }
+    
+    flash.style.opacity = "1";
+    setTimeout(() => { flash.style.opacity = "0"; }, 300);
+};
