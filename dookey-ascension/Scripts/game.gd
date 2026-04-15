@@ -388,6 +388,7 @@ func _avancer_pion(nb: int) -> void:
 	elif atlas_final_pos == PORTAIL_TILE:
 		print("🌀 [%s] Entre dans le PORTAIL VIOLET !" % data["nom"])
 		await _sequence_portail(data)
+		# On laisse la rotation de tour normale se produire à la fin d'avancer_pion
 
 	en_deplacement = false
 
@@ -584,6 +585,14 @@ func _afficher_tour() -> void:
 	if tour_actuel in equipes_bloquees_portail:
 		print("[Portail] L'équipe est bloquée ! Déclenchement forcé du mini-jeu.")
 		await _sequence_portail(pions[tour_actuel])
+		
+		# Après l'épreuve forcée, le tour s'arrête quoi qu'il arrive
+		# (on ne lance pas la roue ce tour-ci)
+		tour_actuel = (tour_actuel + 1) % pions.size()
+		_sauvegarder_partie()
+		_basculer_camera()
+		_afficher_tour()
+		_mettre_a_jour_hud()
 		return
 
 	var est_bot_tour : bool = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
@@ -742,7 +751,9 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 # ═══════════════════════════════════════════════════════════════════════════
 # PORTAIL VIOLET SÉQUENCE
 # ═══════════════════════════════════════════════════════════════════════════
-func _sequence_portail(data: Dictionary) -> void:
+# PORTAIL VIOLET SÉQUENCE
+# ═══════════════════════════════════════════════════════════════════════════
+func _sequence_portail(data: Dictionary) -> bool:
 	# Arrêter les chronos
 	chrono_actif = false
 	temp_label_chrono.visible = false
@@ -785,22 +796,12 @@ func _sequence_portail(data: Dictionary) -> void:
 		await _afficher_banderole_portail("GAGNÉ !")
 		if tour_actuel in equipes_bloquees_portail:
 			equipes_bloquees_portail.erase(tour_actuel)
-		
-		# Après une victoire, on passe normalement au tour suivant
-		tour_actuel = (tour_actuel + 1) % pions.size()
 	else:
 		await _afficher_banderole_portail("ÉCHEC !")
 		if not tour_actuel in equipes_bloquees_portail:
 			equipes_bloquees_portail.append(tour_actuel)
-		
-		# En cas d'échec, on finit le tour ici (donc on change de tour) 
-		# mais au prochain tour de CETTE équipe, ils re-déclencheront le portail dans _afficher_tour
-		tour_actuel = (tour_actuel + 1) % pions.size()
 	
-	_sauvegarder_partie()
-	_basculer_camera()
-	_afficher_tour()
-	_mettre_a_jour_hud()
+	return a_gagne
 
 func _sur_portail_qte_recu(succes: bool, pseudo: String) -> void:
 	if not portail_actif: return
