@@ -373,8 +373,17 @@ func _avancer_pion(nb: int) -> void:
 
 	if data["case"] >= parcours.size() - 1:
 		print("🏁 [%s] Arrive à la ligne d'ARRIVÉE ! Épreuve finale..." % data["nom"])
-		await _sequence_portail(data)
-		# On ne return pas ici, on laisse le tour se finir ou le jeu être redirigé par le portail
+		var gagne = await _sequence_portail(data)
+		
+		# SI ECHEC : On donne une 2ème chance immédiatement ("On joue 2 fois")
+		if not gagne:
+			print("🔄 [%s] 1er essai échoué... DEUXIÈME CHANCE !" % data["nom"])
+			# Petit délai pour laisser respirer
+			await get_tree().create_timer(1.5).timeout
+			await _sequence_portail(data)
+		
+		# On ne return pas, on termine pour que le tour passe si échec total 
+		# ou que la redirection se fasse si victoire.
 	else:
 		# Pause respiratoire seulement si on n'est pas à l'arrivée
 		await get_tree().create_timer(0.8).timeout
