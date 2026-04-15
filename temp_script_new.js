@@ -387,7 +387,8 @@ document.getElementById('ecran-cliquable').onclick = () => {
     }
 };
 
-// ── Vote Boss ────────────────────────────────────────────────────────────────
+// ── Vote Boss ────────────────────────────────────────────────────────────────// Voter Boss (0: recul, 1: perdre équipe)
+let bossAVote = false;
 function voterBoss(option) {
     if (bossAVote) return;
     const myPseudo = sessionStorage.getItem('dookeyPseudo');
