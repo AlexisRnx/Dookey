@@ -304,47 +304,41 @@ func _avancer_pion(nb: int) -> void:
 
 	var data : Dictionary = pions[tour_actuel]
 	
-	# Mouvement initial avec le chiffre de la roue
+	# 1. Mouvement initial avec le chiffre de la roue
 	print("[%s] Résultat Roue : %+d" % [data["nom"], nb])
 	await _deplacer_pion_relatif(data, nb)
 
-	# Vérification de la case d'arrivée pour déclencher un effet (ex: +3, -3)
+	# 2. Vérification et application d'un éventuel effet de case spéciale
 	var coords_actuelles = parcours[data["case"]]
 	var atlas = layer_cases.get_cell_atlas_coords(coords_actuelles)
 	
 	if EFFETS_CASES.has(atlas):
 		var effet = EFFETS_CASES[atlas]
 		print("⚡ [%s] Tombe sur une case spéciale ! Effet : %+d" % [data["nom"], effet])
-		await get_tree().create_timer(0.4).timeout # Petite pause dramatique
-		# Le pion fait un bond direct (en_un_saut = true)
+		await get_tree().create_timer(0.4).timeout
 		await _deplacer_pion_relatif(data, effet, true)
 
 	if data["case"] >= parcours.size() - 1:
 		print("🎉 %s a atteint l'arrivée !" % data["nom"])
 
-	# Petite pause respiratoire pour voir le pion atterrir avant le changement de caméra
+	# Pause respiratoire
 	await get_tree().create_timer(0.8).timeout
 
-	# Vérifier si le pion tombe sur la case du BOSS (déclenchement principal)
-	var atlas_boss_check = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
-	if atlas_boss_check == BOSS_TILE:
+	# 3. Vérification UNIQUE du Boss sur la position finale (après tous les effets)
+	var atlas_final_pos = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
+	if atlas_final_pos == BOSS_TILE:
 		print("💀 [%s] Tombe sur la case DOOKEY BOSS !" % data["nom"])
-		await _sequence_dookey_boss(data)
-
-	# Vérifier via un éventuel effet de case spéciale si le pion a aussi atterri sur le Boss
-	var atlas_apres_effet = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
-	if atlas_apres_effet == BOSS_TILE and not boss_vote_actif:
-		print("💀 [%s] Atterrit sur le BOSS via un effet de case !" % data["nom"])
 		await _sequence_dookey_boss(data)
 
 	en_deplacement = false
 	
-	# Vérifier la tuile FINAle (après les bonds) pour voir s'il rejoue
+	# 4. Vérifier si la tuile finale est une case "Rejoue" (vert)
+	#    Note : on re-lit l'atlas car _appliquer_malus_boss peut avoir déplacé le pion
 	var atlas_final = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
 	
 	if atlas_final == Vector2i(0, 1):
 		print("🔄 [%s] Tombe sur la case Verte ! REJOUE SON TOUR !" % data["nom"])
-		# On ne change pas tour_actuel, il va garder la caméra et relancer la roue !
+		# On ne change pas tour_actuel, il garde la caméra et relance la roue
 	else:
 		# Fin normale du tour, passe au joueur suivant
 		tour_actuel = (tour_actuel + 1) % pions.size()
@@ -578,6 +572,16 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 		print("[Boss] Aucun vote - choix aléatoire : option ", gagnant)
 	elif boss_votes[1] > boss_votes[0]:
 		gagnant = 1
+	
+	# Correction anticipée : si option 1 a gagné mais l'équipe est vide → fallback option 0
+	if gagnant == 1:
+		var membres_check := []
+		for pseudo in WebSocketServer.equipes:
+			if WebSocketServer.equipes[pseudo] == tour_actuel:
+				membres_check.append(pseudo)
+		if membres_check.is_empty():
+			print("[Boss] Option 1 annulée (équipe vide) → Forçage sur option 0 (recul).")
+			gagnant = 0
 
 	# 6. Illuminer en vert la carte gagnante
 	_illuminer_carte_boss(gagnant)
