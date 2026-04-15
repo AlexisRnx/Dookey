@@ -20,6 +20,17 @@ const EFFETS_CASES: Dictionary = {
 	Vector2i(3, 1): -5    # Cercle orange : -5
 }
 
+# Case du Boss
+const BOSS_TILE       := Vector2i(0, 2)
+const BOSS_TEXTURE    := preload("res://Assets/Dookey_Boss.png")
+const BOSS_DIALOGUES : Array[String] = [
+	"L'ascension est un privilège que je révoque... MAINTENANT.",
+	"Je suis Dookey Boss, le seul maître de ce royaume. Inclinez-vous !",
+	"Votre courage n'est qu'un bug dans ma matrice. Je vais vous effacer.",
+	"Vous pensiez atteindre le sommet ? Quel optimisme pathétique...",
+	"Le désespoir a un goût délicieux. Choisissez votre supplice !"
+]
+
 # ═══════════════════════════════════════════════════════════════════════════
 # DONNÉES INTERNES
 # ═══════════════════════════════════════════════════════════════════════════
@@ -41,6 +52,19 @@ var roue_instance: Node2D       # instance de la scène Roue dans le HUD
 var temps_chrono := 0.0
 var chrono_actif := false
 var vote_en_cours: Dictionary = {}
+
+# Boss
+var boss_votes        := {0: 0, 1: 0}
+var boss_vote_actif   := false
+var boss_chrono_actif := false
+var boss_chrono_temps := 10.0
+var boss_overlay  : Control      = null
+var boss_sprite   : TextureRect  = null
+var boss_pct_0    : Label        = null
+var boss_pct_1    : Label        = null
+var boss_card_0   : PanelContainer = null
+var boss_card_1   : PanelContainer = null
+var boss_timer_lbl: Label        = null
 
 # ═══════════════════════════════════════════════════════════════════════════
 func _ready() -> void:
@@ -180,21 +204,25 @@ func _sur_lancer_roue_web() -> void:
 var dernier_secondes_sauvegardees := 10
 
 func _process(delta: float) -> void:
+	# Chrono du tour normal
 	if chrono_actif:
 		temps_chrono -= delta
-		
-		# Sauvegarde constante synchronisée chaque seconde écoulée
 		var sec_int = ceili(temps_chrono)
 		if sec_int != dernier_secondes_sauvegardees and sec_int >= 0:
 			dernier_secondes_sauvegardees = sec_int
 			_sauvegarder_partie()
-			
 		if temps_chrono <= 0.0:
 			chrono_actif = false
 			temp_label_chrono.visible = false
 			_declencher_roue()
 		else:
 			temp_label_chrono.text = str(sec_int)
+	# Chrono du boss vote
+	if boss_chrono_actif:
+		boss_chrono_temps -= delta
+		if boss_timer_lbl:
+			boss_timer_lbl.text = str(ceili(max(boss_chrono_temps, 0.0)))
+		_mettre_a_jour_pourcentages_boss()
 
 func _declencher_roue() -> void:
 	_montrer_roue()
@@ -295,6 +323,12 @@ func _avancer_pion(nb: int) -> void:
 
 	# Petite pause respiratoire pour voir le pion atterrir avant le changement de caméra
 	await get_tree().create_timer(0.8).timeout
+
+	# Vérifier si le pion tombe sur la case du BOSS
+	var atlas_boss_check = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
+	if atlas_boss_check == BOSS_TILE:
+		print("💀 [%s] Tombe sur la case DOOKEY BOSS !" % data["nom"])
+		await _sequence_dookey_boss(data)
 
 	en_deplacement = false
 	
@@ -481,3 +515,315 @@ func _reprendre_tour() -> void:
 	WebSocketServer.etat_courant = msg
 	# Les manettes reconnectées verront "NOUVEAU_TOUR" et pourront revoter si elles reconnectent. 
 	WebSocketServer.envoyer_message(msg)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DOOKEY BOSS SÉQUENCE
+# ═══════════════════════════════════════════════════════════════════════════
+func _sequence_dookey_boss(data: Dictionary) -> void:
+	boss_votes = {0: 0, 1: 0}
+	boss_vote_actif = true
+	WebSocketServer.boss_vote_recu.connect(_sur_boss_vote)
+	WebSocketServer.envoyer_message("BOSS_EVENT")
+
+	_creer_boss_ui()
+
+	# 1. Boss tombe du ciel
+	var sw := get_viewport().get_visible_rect().size.x
+	boss_sprite.position = Vector2(sw / 2.0 - 100.0, -260.0)
+	var tw_entree = create_tween()
+	tw_entree.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	tw_entree.tween_property(boss_sprite, "position:y", 20.0, 1.2)
+	await tw_entree.finished
+	
+	# Shake camera on impact
+	_secouer_camera(15.0, 0.5)
+
+	# 2. Dialogue
+	var dial_panel : PanelContainer = boss_sprite.get_parent().get_node_or_null("BossDialPanel")
+	if dial_panel:
+		dial_panel.get_child(0).text = BOSS_DIALOGUES[randi() % BOSS_DIALOGUES.size()]
+		dial_panel.visible = true
+		await get_tree().create_timer(5.0).timeout
+		dial_panel.visible = false
+
+	# 3. Afficher les cartes de vote
+	boss_card_0.visible = true
+	boss_card_1.visible = true
+	boss_timer_lbl.visible = true
+
+	# 4. Chrono 10 secondes
+	boss_chrono_actif = true
+	boss_chrono_temps = 10.0
+	await get_tree().create_timer(10.5).timeout  # +0.5s de marge
+	boss_chrono_actif = false
+	boss_timer_lbl.visible = false
+
+	# 5. Trouver le gagnant
+	var gagnant := 0
+	if boss_votes[0] + boss_votes[1] == 0:
+		gagnant = randi() % 2
+		print("[Boss] Aucun vote - choix aléatoire : option ", gagnant)
+	elif boss_votes[1] > boss_votes[0]:
+		gagnant = 1
+
+	# 6. Illuminer en vert la carte gagnante
+	_illuminer_carte_boss(gagnant)
+	WebSocketServer.envoyer_message("BOSS_RESULT:" + str(gagnant))
+	await get_tree().create_timer(2.5).timeout
+
+	# 7. Appliquer le malus
+	_appliquer_malus_boss(gagnant, data)
+
+	# 8. Boss repart dans le ciel
+	boss_card_0.visible = false
+	boss_card_1.visible = false
+	var tw_sortie = create_tween()
+	tw_sortie.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw_sortie.tween_property(boss_sprite, "position:y", -350.0, 0.9)
+	await tw_sortie.finished
+
+	# 9. Nettoyage
+	WebSocketServer.envoyer_message("BOSS_END")
+	if WebSocketServer.boss_vote_recu.is_connected(_sur_boss_vote):
+		WebSocketServer.boss_vote_recu.disconnect(_sur_boss_vote)
+	boss_overlay.queue_free()
+	boss_overlay = null
+	boss_vote_actif = false
+
+func _creer_boss_ui() -> void:
+	var sw := get_viewport().get_visible_rect().size.x
+	var sh := get_viewport().get_visible_rect().size.y
+
+	# Overlay sombre
+	var bg = ColorRect.new()
+	bg.name = "BossOverlay"
+	bg.color = Color(0.0, 0.0, 0.0, 0.78)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hud_layer.add_child(bg)
+	boss_overlay = bg
+
+	# Sprite Boss
+	boss_sprite = TextureRect.new()
+	boss_sprite.texture = BOSS_TEXTURE
+	boss_sprite.custom_minimum_size = Vector2(200, 200)
+	boss_sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	boss_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	boss_sprite.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	boss_sprite.position = Vector2(sw / 2.0 - 100.0, -260.0)
+	hud_layer.add_child(boss_sprite)
+
+	# Dialogue
+	var dial_panel = PanelContainer.new()
+	dial_panel.name = "BossDialPanel"
+	var dstyle = StyleBoxFlat.new()
+	dstyle.bg_color = Color(0.05, 0.05, 0.05, 1.0) # Obsidian
+	dstyle.border_width_bottom = 5
+	dstyle.border_color = Color(0.9, 0.0, 0.1) # Crimson
+	dstyle.shadow_size = 20
+	dstyle.shadow_color = Color(0, 0, 0, 0.8)
+	dstyle.corner_radius_top_left = 12
+	dstyle.corner_radius_top_right = 12
+	dstyle.corner_radius_bottom_left = 12
+	dstyle.corner_radius_bottom_right = 12
+	dstyle.set_content_margin_all(20)
+	dial_panel.add_theme_stylebox_override("panel", dstyle)
+	dial_panel.set_anchors_preset(Control.PRESET_TOP_LEFT) # Force Top-Left anchors for manual position
+	dial_panel.position = Vector2(sw / 2.0 - 220.0, 240.0)
+	dial_panel.custom_minimum_size = Vector2(440, 0)
+	var dial_lbl = Label.new()
+	dial_lbl.text = ""
+	dial_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dial_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dial_lbl.add_theme_font_size_override("font_size", 22)
+	dial_lbl.add_theme_color_override("font_color", Color.WHITE)
+	dial_lbl.add_theme_constant_override("outline_size", 4)
+	dial_lbl.add_theme_color_override("font_outline_color", Color(0.5, 0.0, 0.8))
+	dial_panel.add_child(dial_lbl)
+	dial_panel.visible = false
+	hud_layer.add_child(dial_panel)
+	dial_panel.move_to_front() # Ensure it's on top of ORange/Gray
+
+	# Cartes de vote (centrées)
+	var cx := sw / 2.0
+	var cy := sh / 2.0 + 60.0
+
+	boss_card_0 = _creer_carte_boss(
+		" Reculer de 10 cases ",
+		"Le pion recule de 10 cases en arrière.",
+		Color(0.6, 0.0, 0.0), Vector2(cx - 320.0, cy - 80.0)
+	)
+	boss_card_0.visible = false
+	hud_layer.add_child(boss_card_0)
+	boss_card_0.move_to_front()
+	boss_pct_0 = boss_card_0.get_node("VBox/Pct")
+
+	boss_card_1 = _creer_carte_boss(
+		" Perdre 10% de l'équipe ",
+		"10% des joueurs de l'équipe sont éliminés du vote.",
+		Color(0.6, 0.0, 0.0), Vector2(cx + 20.0, cy - 80.0) # Red theme like Card 0
+	)
+	boss_card_1.visible = false
+	hud_layer.add_child(boss_card_1)
+	boss_card_1.move_to_front()
+	boss_pct_1 = boss_card_1.get_node("VBox/Pct")
+
+	# Timer
+	boss_timer_lbl = Label.new()
+	boss_timer_lbl.text = "10"
+	boss_timer_lbl.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	boss_timer_lbl.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	boss_timer_lbl.offset_bottom = -20
+	boss_timer_lbl.offset_top   = -80
+	boss_timer_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boss_timer_lbl.add_theme_font_size_override("font_size", 50)
+	boss_timer_lbl.add_theme_color_override("font_color", Color.WHITE)
+	boss_timer_lbl.add_theme_constant_override("outline_size", 8)
+	boss_timer_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+	boss_timer_lbl.visible = false
+	hud_layer.add_child(boss_timer_lbl)
+	boss_timer_lbl.move_to_front()
+
+func _creer_carte_boss(titre: String, desc: String, couleur: Color, pos: Vector2) -> PanelContainer:
+	var pan = PanelContainer.new()
+	var st = StyleBoxFlat.new()
+	st.bg_color = couleur.darkened(0.3)
+	st.border_color = couleur
+	st.border_width_bottom = 4
+	st.border_width_top = 4
+	st.border_width_left = 4
+	st.border_width_right = 4
+	st.corner_radius_top_left = 16
+	st.corner_radius_top_right = 16
+	st.corner_radius_bottom_left = 16
+	st.corner_radius_bottom_right = 16
+	st.set_content_margin_all(20)
+	pan.add_theme_stylebox_override("panel", st)
+	pan.position = pos
+	pan.custom_minimum_size = Vector2(280, 160)
+
+	var vbox = VBoxContainer.new()
+	vbox.name = "VBox"
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 12)
+	pan.add_child(vbox)
+
+	var lbl_titre = Label.new()
+	lbl_titre.text = titre
+	lbl_titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_titre.add_theme_font_size_override("font_size", 20)
+	lbl_titre.add_theme_color_override("font_color", Color.WHITE)
+	var ls = LabelSettings.new()
+	ls.font_size = 20
+	ls.outline_size = 5
+	ls.outline_color = Color.BLACK
+	lbl_titre.label_settings = ls
+	vbox.add_child(lbl_titre)
+
+	var lbl_desc = Label.new()
+	lbl_desc.text = desc
+	lbl_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_desc.add_theme_font_size_override("font_size", 14)
+	lbl_desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+	vbox.add_child(lbl_desc)
+
+	var lbl_pct = Label.new()
+	lbl_pct.name = "Pct"
+	lbl_pct.text = "0%"
+	lbl_pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_pct.add_theme_font_size_override("font_size", 32)
+	lbl_pct.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))  # vert
+	vbox.add_child(lbl_pct)
+
+	pan.set_anchors_preset(Control.PRESET_TOP_LEFT) # Important pour que 'pos' soit absolu
+	pan.position = pos
+
+	return pan
+
+func _mettre_a_jour_pourcentages_boss() -> void:
+	if not boss_pct_0 or not boss_pct_1:
+		return
+	var total : int = boss_votes[0] + boss_votes[1]
+	if total == 0:
+		boss_pct_0.text = "0%"
+		boss_pct_1.text = "0%"
+	else:
+		boss_pct_0.text = str(roundi(boss_votes[0] * 100.0 / total)) + "%"
+		boss_pct_1.text = str(roundi(boss_votes[1] * 100.0 / total)) + "%"
+
+func _illuminer_carte_boss(gagnant: int) -> void:
+	var carte_win : PanelContainer = boss_card_0 if gagnant == 0 else boss_card_1
+	var carte_lose: PanelContainer = boss_card_1 if gagnant == 0 else boss_card_0
+	var st_win = StyleBoxFlat.new()
+	st_win.bg_color = Color(0.1, 0.6, 0.1)
+	st_win.border_color = Color(0.2, 1.0, 0.2)
+	st_win.border_width_bottom = 6
+	st_win.border_width_top = 6
+	st_win.border_width_left = 6
+	st_win.border_width_right = 6
+	st_win.corner_radius_top_left = 16
+	st_win.corner_radius_top_right = 16
+	st_win.corner_radius_bottom_left = 16
+	st_win.corner_radius_bottom_right = 16
+	st_win.set_content_margin_all(20)
+	carte_win.add_theme_stylebox_override("panel", st_win)
+	var st_lose = StyleBoxFlat.new()
+	st_lose.bg_color = Color(0.15, 0.15, 0.15)
+	st_lose.border_color = Color(0.3, 0.3, 0.3)
+	st_lose.border_width_bottom = 4
+	st_lose.border_width_top = 4
+	st_lose.border_width_left = 4
+	st_lose.border_width_right = 4
+	st_lose.corner_radius_top_left = 16
+	st_lose.corner_radius_top_right = 16
+	st_lose.corner_radius_bottom_left = 16
+	st_lose.corner_radius_bottom_right = 16
+	st_lose.set_content_margin_all(20)
+	carte_lose.add_theme_stylebox_override("panel", st_lose)
+
+func _appliquer_malus_boss(gagnant: int, data: Dictionary) -> void:
+	if gagnant == 0:
+		# Reculer de 10 cases
+		print("[Boss] Malus appliqué : RECUL de 10 cases pour %s" % data["nom"])
+		await _deplacer_pion_relatif(data, -10, true)
+	else:
+		# Perdre 10% de l'équipe
+		var equipe_idx := tour_actuel
+		var membres := []
+		for pseudo in WebSocketServer.equipes:
+			if WebSocketServer.equipes[pseudo] == equipe_idx:
+				membres.append(pseudo)
+		var nb_elimines := maxi(1, roundi(membres.size() * 0.1))
+		membres.shuffle()
+		for i in range(mini(nb_elimines, membres.size())):
+			var pseudo = membres[i]
+			WebSocketServer.equipes.erase(pseudo)
+			print("[Boss] Joueur éliminé du vote : ", pseudo)
+			# Notifier le joueur spécifiquement
+			WebSocketServer.envoyer_message("ELIMINE:" + pseudo)
+		
+		# Synchroniser la liste globale des équipes avec le serveur Node
+		WebSocketServer.notifier_mises_a_jour_equipes()
+		
+		var msg_elim = "BOSS_ELIMINES:" + str(nb_elimines)
+		WebSocketServer.envoyer_message(msg_elim)
+
+# ───────────────────────────────────────────────────────────────────────────
+# EFFETS VISUELS
+# ───────────────────────────────────────────────────────────────────────────
+func _secouer_camera(intensite: float, duree: float) -> void:
+	var cam : Camera2D = pions[tour_actuel]["camera"]
+	var pos_origine = cam.offset
+	var tw = create_tween()
+	var steps = 8
+	for i in range(steps):
+		var target_offset = Vector2(randf_range(-intensite, intensite), randf_range(-intensite, intensite))
+		tw.tween_property(cam, "offset", target_offset, duree / float(steps))
+		intensite *= 0.8 # Diminue l'intensité progressivement
+	tw.tween_property(cam, "offset", pos_origine, 0.05)
+
+func _sur_boss_vote(option: int) -> void:
+	if not boss_vote_actif:
+		return
+	boss_votes[option] += 1
+	print("[Boss] Vote reçu - Option %d | Scores : %s" % [option, str(boss_votes)])

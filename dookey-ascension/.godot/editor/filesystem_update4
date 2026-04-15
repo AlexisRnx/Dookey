@@ -1,3 +1,4 @@
 res://Scripts/lobby.gd
 res://Scripts/game.gd
 res://Scenes/game.tscn
+res://Scripts/websocket_server.gd

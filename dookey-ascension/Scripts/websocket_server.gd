@@ -12,6 +12,7 @@ signal lancer_roue_web()
 signal joueur_rejoint(pseudo: String)
 signal joueur_quitte(pseudo: String)
 signal code_salle_recu(code: String)
+signal boss_vote_recu(option: int)
 
 var _ws := WebSocketPeer.new()
 var est_connecte := false
@@ -155,6 +156,12 @@ func _traiter_message(message: String) -> void:
 	# ── Format LANCER (déclenche juste la roue) ───────────────────────────
 	elif message == "LANCER":
 		lancer_roue_web.emit()
+	
+	# ── Format BOSS_VOTE:0 ou BOSS_VOTE:1 (vote malus boss) ────────────────────
+	elif message.begins_with("BOSS_VOTE:"):
+		var option := message.substr(10).strip_edges().to_int()
+		if option == 0 or option == 1:
+			boss_vote_recu.emit(option)
 
 # ── Envoie d'un message vers le serveur Node (qui relayera à tous les téléphones)
 func envoyer_message(msg: String) -> void:
@@ -163,3 +170,12 @@ func envoyer_message(msg: String) -> void:
 
 func verrouiller_salle() -> void:
 	envoyer_message("LOCK_ROOM")
+
+# Notifie le serveur Node de l'état actuel des équipes (ex: après une élimination)
+func notifier_mises_a_jour_equipes() -> void:
+	var msg = "EQUIPES:"
+	var entries = []
+	for pseudo in equipes:
+		entries.append("%s=%d" % [pseudo, equipes[pseudo]])
+	msg += ",".join(entries)
+	envoyer_message(msg)

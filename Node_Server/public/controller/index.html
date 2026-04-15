@@ -107,8 +107,82 @@
 			box-shadow: 0 6px 30px rgba(0,0,0,0.4);
 			z-index: 100;
 		}
+		/* BOSS VOTE SCREEN */
+		#boss-vote-screen {
+			display: none;
+			position: fixed;
+			top: 0; left: 0;
+			width: 100%; height: 100%;
+			background: rgba(5,0,15,0.92);
+			z-index: 300;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 18px;
+			padding: 20px;
+			box-sizing: border-box;
+		}
+		#boss-vote-screen h2 {
+			margin: 0;
+			font-size: 1.4rem;
+			color: #d966ff;
+			text-shadow: 0 0 12px #a020f0;
+			letter-spacing: 2px;
+		}
+		.boss-card {
+			width: 100%;
+			max-width: 340px;
+			padding: 18px;
+			border-radius: 16px;
+			border: 2px solid rgba(255,255,255,0.2);
+			text-align: center;
+			cursor: pointer;
+			transition: transform 0.15s, border-color 0.2s;
+			box-sizing: border-box;
+		}
+		.boss-card:active { transform: scale(0.96); }
+		.boss-card h3 { margin: 0 0 6px; font-size: 1.1rem; color: white; }
+		.boss-card p  { margin: 0; font-size: 0.85rem; color: #aaa; }
+		.boss-card.voted { border-color: #2ecc71; box-shadow: 0 0 14px #2ecc71; }
+		.boss-card.winner { background: rgba(46,204,113,0.25); border-color: #2ecc71; }
+		.boss-card.loser  { opacity: 0.4; }
+		#boss-vote-status { font-size: 0.9rem; color: #888; margin: 0; }
 
-    </style>
+		/* ELIMINATED SCREEN */
+		#eliminated-screen {
+			display: none;
+			position: fixed;
+			top: 0; left: 0;
+			width: 100%; height: 100%;
+			background: radial-gradient(circle, #2a0505 0%, #000 100%);
+			z-index: 1000;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 40px;
+			box-sizing: border-box;
+		}
+		#eliminated-screen h1 {
+			font-size: 3rem;
+			color: #ff3333;
+			margin: 0;
+			text-shadow: 0 0 20px rgba(255,0,0,0.6);
+			font-weight: 900;
+		}
+		#eliminated-screen p {
+			font-size: 1.2rem;
+			color: #ccc;
+			margin-top: 20px;
+		}
+		.skull-icon {
+			font-size: 6rem;
+			margin-bottom: 20px;
+			filter: drop-shadow(0 0 15px rgba(255,255,255,0.2));
+		}
+
+
+	</style>
 </head>
 <body>
 
@@ -157,6 +231,27 @@
             
             <p id="txt-info">Regardez l'écran principal</p>
         </div>
+
+        <!-- BOSS VOTE OVERLAY -->
+        <div id="boss-vote-screen">
+            <h2>☠️ DOOKEY BOSS ! ☠️</h2>
+            <div id="boss-card-0" class="boss-card" style="background:rgba(100,0,0,0.9); border-color: rgba(255,0,0,0.4);" onclick="voterBoss(0)">
+                <h3>Reculer de 10 cases</h3>
+                <p>Le pion recule de 10 cases en arrière</p>
+            </div>
+            <div id="boss-card-1" class="boss-card" style="background:rgba(100,0,0,0.9); border-color: rgba(255,0,0,0.4);" onclick="voterBoss(1)">
+                <h3>Perdre 10% de l'équipe</h3>
+                <p>10% des joueurs de l'équipe sont éliminés du vote</p>
+            </div>
+            <p id="boss-vote-status">Touchez une option pour voter...</p>
+        </div>
+
+		<!-- ELIMINATED OVERLAY -->
+		<div id="eliminated-screen">
+			<div class="skull-icon">☠️</div>
+			<h1>DOMMAGE !</h1>
+			<p>Dookey Boss vous a éliminé de l'équipe.<br>Vous ne pouvez plus participer aux votes.</p>
+		</div>
     </div>
 
     <script src="script.js"></script>

@@ -32,6 +32,7 @@ let position = 0;
 let direction = 1;
 let estArrete = false;
 let estVerrouille = false;
+let bossAVote = false;  // True quand le joueur a déjà voté pour le boss
 const vitesse = 1.5; 
 const curseur = document.getElementById('curseur');
 const cases = document.querySelectorAll('.case-score');
@@ -131,7 +132,33 @@ function initWebSocket(code, pseudo) {
         }
 
         // Phase 2 : En Jeu
-        if (data.startsWith("NOUVEAU_TOUR:")) {
+        if (data === 'BOSS_EVENT') {
+            // Masquer la barre, afficher l'écran de vote boss
+            bossAVote = false;
+            document.getElementById('boss-card-0').className = 'boss-card';
+            document.getElementById('boss-card-1').className = 'boss-card';
+            document.getElementById('boss-vote-status').innerText = 'Touchez une option pour voter...';
+            document.getElementById('ecran-cliquable').style.display = 'none';
+            const bossScreen = document.getElementById('boss-vote-screen');
+            bossScreen.style.display = 'flex';
+        } else if (data.startsWith('BOSS_RESULT:')) {
+            const gagnant = parseInt(data.split(':')[1]);
+            document.getElementById('boss-card-' + gagnant).classList.add('winner');
+            document.getElementById('boss-card-' + (1 - gagnant)).classList.add('loser');
+            document.getElementById('boss-vote-status').innerText = gagnant === 0 ? 'Recul de 10 cases...' : '10% de l’équipe éliminée...';
+        } else if (data === 'BOSS_END') {
+            // Cacher l'écran boss, rétablir la barre
+            document.getElementById('boss-vote-screen').style.display = 'none';
+            document.getElementById('ecran-cliquable').style.display = '';
+        } else if (data.startsWith('ELIMINE:')) {
+            const victim = data.split(':')[1];
+            const myPseudo = sessionStorage.getItem('dookeyPseudo');
+            if (victim === myPseudo) {
+                document.getElementById('eliminated-screen').style.display = 'flex';
+                document.getElementById('boss-vote-screen').style.display = 'none';
+                document.getElementById('ecran-cliquable').style.display = 'none';
+            }
+        } else if (data.startsWith("NOUVEAU_TOUR:")) {
             let parts = data.split(":");
             tourActuel = parseInt(parts[1]);
             nomEquipeTour = parts[2];
@@ -257,3 +284,19 @@ document.getElementById('ecran-cliquable').onclick = () => {
         }, 150);
     }
 };
+
+// ── Vote Boss ────────────────────────────────────────────────────────────────
+function voterBoss(option) {
+    if (bossAVote || !isGameScreenActive || !socket || socket.readyState !== WebSocket.OPEN) return;
+    bossAVote = true;
+
+    // Marquer la carte choisie
+    document.getElementById('boss-card-' + option).classList.add('voted');
+    document.getElementById('boss-vote-status').innerText = '✅ Vote enregistré !';
+
+    // Désactiver les clics sur les deux cartes
+    document.getElementById('boss-card-0').style.pointerEvents = 'none';
+    document.getElementById('boss-card-1').style.pointerEvents = 'none';
+
+    socket.send('BOSS_VOTE:' + option);
+}
