@@ -21,12 +21,6 @@ app.get('/display', (req, res) => {
     res.sendFile(path.join(__dirname, 'godot', 'Dookey Ascension.html'));
 });
 
-// Explicit redirect rule for QR codes to guarantee query param survival across all mobile OS 
-app.get('/play', (req, res) => {
-    const code = req.query.code || '';
-    res.redirect(`/controller/?code=${code}`);
-});
-
 // Add a default route helping the user redirect to the right place
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));

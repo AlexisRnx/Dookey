@@ -343,9 +343,9 @@ func _sur_code_salle_recu(code: String) -> void:
 		if host and protocol:
 			base_url = protocol + "//" + host
 			
-	lien_label.text = "Adresse : " + base_url + "/controller"
-			
-	var url_cible = base_url + "/play?code=" + code
+	var url_cible = base_url + "/controller?code=" + code
+	lien_label.text = "URL du QR Code : " + url_cible
+	
 	var url_api = "https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=" + url_cible.uri_encode()
 	http_request.request(url_api)
 
