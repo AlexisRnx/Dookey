@@ -820,6 +820,14 @@ func _appliquer_malus_boss(gagnant: int, data: Dictionary) -> void:
 			if WebSocketServer.equipes[pseudo] == equipe_idx:
 				membres.append(pseudo)
 		var nb_elimines := ceili(membres.size() * 0.1)
+		
+		# Si aucun joueur dans l'équipe, le vote "10%" ne peut pas s'appliquer.
+		# Fallback automatique vers le recul de 10 cases.
+		if membres.is_empty():
+			print("[Boss] Aucun joueur dans l'équipe %d — Fallback vers RECUL de 10 cases." % equipe_idx)
+			await _deplacer_pion_relatif(data, -10, true)
+			return
+		
 		membres.shuffle()
 		var victimes := []
 		
