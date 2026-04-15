@@ -138,6 +138,8 @@ function initWebSocket(code, pseudo) {
             nomEquipeTour = parts[2];
             aVoteCeTour = false;
             document.getElementById('ws-label').innerText = "Tour en cours";
+            // Cacher la bannière équipe quand la partie démarre
+            document.getElementById('team-banner').style.display = 'none';
             // L'activation sera gérée par MON_TOUR / PAS_MON_TOUR
         } else if (data === 'MON_TOUR') {
             estVerrouille = false;
@@ -169,6 +171,11 @@ function initWebSocket(code, pseudo) {
         } else if (data.startsWith("VOTRE_EQUIPE:")) {
             const idx = parseInt(data.split(":")[1]);
             afficherBadgeEquipe(idx);
+            // Afficher la bannière colorée pleine largeur
+            const banner = document.getElementById('team-banner');
+            banner.style.background = EQUIPES_COULEURS[idx] || '#555';
+            banner.innerText = EQUIPES_NOMS[idx] || ('Equipe ' + (idx + 1));
+            banner.style.display = 'block';
         }
     };
 }
