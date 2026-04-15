@@ -373,17 +373,19 @@ func _avancer_pion(nb: int) -> void:
 
 	if data["case"] >= parcours.size() - 1:
 		print("🏁 [%s] Arrive à la ligne d'ARRIVÉE ! Épreuve finale..." % data["nom"])
-		var gagne = await _sequence_portail(data)
+		var est_equipe_bot = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
 		
-		# SI ECHEC : On donne une 2ème chance immédiatement ("On joue 2 fois")
-		if not gagne:
-			print("🔄 [%s] 1er essai échoué... DEUXIÈME CHANCE !" % data["nom"])
-			# Petit délai pour laisser respirer
-			await get_tree().create_timer(1.5).timeout
-			await _sequence_portail(data)
+		# Les joueurs humains ont 3 tentatives, les bots seulement 1
+		var nb_tentatives_max = 1 if est_equipe_bot else 3
 		
-		# On ne return pas, on termine pour que le tour passe si échec total 
-		# ou que la redirection se fasse si victoire.
+		for t in range(nb_tentatives_max):
+			if t > 0:
+				print("🔄 [%s] Tentative %d..." % [data["nom"], t + 1])
+				await get_tree().create_timer(1.5).timeout
+			
+			var gagne = await _sequence_portail(data)
+			if gagne:
+				break # Sort de la boucle si réussite (la redirection se fera dans _sequence_portail)
 	else:
 		# Pause respiratoire seulement si on n'est pas à l'arrivée
 		await get_tree().create_timer(0.8).timeout
