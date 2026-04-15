@@ -64,7 +64,9 @@ let qtePosition = 0;
 let qteDirection = 1;
 let qteAnimId = null;
 
-let lastTime = 0;
+let lastTimeMain = 0;
+let lastTimeQte = 0;
+let portailInterval = null;
 const VITESSE_UNIFORME = 90; // 90% de la largeur de la barre par seconde
 
 const curseur = document.getElementById('curseur');
@@ -147,8 +149,8 @@ function initWebSocket(code, pseudo) {
                 document.getElementById('ws-label').innerText = 'Connecté (Attente...)';
                 
                 melangerChiffres();
-                lastTime = performance.now();
-                animer(lastTime);
+                lastTimeMain = performance.now();
+                animer(lastTimeMain);
                 evaluerVerrouillageBase(); // Bloque tout jusqu'au NOUVEAU_TOUR
             } else if (data === "ERROR:ROOM_NOT_FOUND") {
                 sessionStorage.removeItem('dookeyRoomCode');
@@ -281,6 +283,7 @@ function initWebSocket(code, pseudo) {
             document.getElementById('team-banner').style.display = 'none';
             // L'activation sera gérée par MON_TOUR / PAS_MON_TOUR
         } else if (data === 'MON_TOUR') {
+            if (qteActive) return; // Ne pas perturber le mini-jeu
             estVerrouille = false;
             estArrete = false;
             aVoteCeTour = false;
@@ -289,9 +292,10 @@ function initWebSocket(code, pseudo) {
             document.getElementById("txt-info").innerText = "À TOI DE JOUER ! CLIQUE POUR ARRÊTER";
             document.getElementById("nom-equipe-tour").innerText = "🎯 TON ÉQUIPE JOUE !";
             melangerChiffres();
-            lastTime = performance.now();
-            animer(lastTime);
+            lastTimeMain = performance.now();
+            animer(lastTimeMain);
         } else if (data === 'PAS_MON_TOUR') {
+            if (qteActive) return; // Ne pas perturber le mini-jeu
             estVerrouille = true;
             estArrete = true;
             document.getElementById("ecran-cliquable").style.opacity = "0.3";
@@ -343,8 +347,8 @@ function evaluerVerrouillage() {
         document.getElementById("txt-info").innerText = "À TOI DE JOUER ! CLIQUE POUR ARRÊTER";
         estArrete = false;
         melangerChiffres();
-        lastTime = performance.now();
-        animer(lastTime);
+        lastTimeMain = performance.now();
+        animer(lastTimeMain);
     }
 }
 
@@ -361,8 +365,8 @@ function animer(currentTime) {
         return;
     }
 
-    const deltaTime = (currentTime - lastTime) / 1000; // Convertir en secondes
-    lastTime = currentTime;
+    const deltaTime = (currentTime - lastTimeMain) / 1000; // Convertir en secondes
+    lastTimeMain = currentTime;
 
     position += VITESSE_UNIFORME * direction * deltaTime;
     
@@ -443,13 +447,25 @@ function lancerPortailQTE() {
     document.getElementById('portail-flash').style.opacity = "0";
     document.getElementById('ecran-cliquable').style.display = 'none';
     
-    lastTime = performance.now();
-    animerPortail(lastTime);
+    // Timer visuel
+    let timeLeft = 8;
+    const timerElem = document.getElementById('portail-timer');
+    timerElem.innerText = timeLeft;
+    if (portailInterval) clearInterval(portailInterval);
+    portailInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft >= 0) timerElem.innerText = timeLeft;
+        if (timeLeft <= 0) clearInterval(portailInterval);
+    }, 1000);
+
+    lastTimeQte = performance.now();
+    animerPortail(lastTimeQte);
 }
 
 function stopPortailQTE() {
     qteActive = false;
     if (qteAnimId) cancelAnimationFrame(qteAnimId);
+    if (portailInterval) clearInterval(portailInterval);
     document.getElementById('portail-screen').style.display = 'none';
     document.getElementById('ecran-cliquable').style.display = '';
 }
@@ -457,8 +473,8 @@ function stopPortailQTE() {
 function animerPortail(currentTime) {
     if (!qteActive || portailAClike) return;
 
-    const deltaTime = (currentTime - lastTime) / 1000;
-    lastTime = currentTime;
+    const deltaTime = (currentTime - lastTimeQte) / 1000;
+    lastTimeQte = currentTime;
 
     qtePosition += VITESSE_UNIFORME * qteDirection * deltaTime;
     
