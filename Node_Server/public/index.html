@@ -44,23 +44,14 @@
             image-rendering: pixelated;
         }
 
-        /* ── Carte centrale (Menu) ── */
+        /* ── Conteneur des Boutons ── */
         .container {
             position: absolute;
             top: 40px;
             right: 40px;
             z-index: 10;
-            background: rgba(232, 208, 170, 0.4); /* Sable très transparent */
-            backdrop-filter: blur(4px); /* Léger flou derrière pour la lisibilité */
-            -webkit-backdrop-filter: blur(4px);
-            border: 6px solid #6b4028; /* Bordure marron */
-            border-radius: 8px;
-            padding: 2rem 2.5rem;
+            width: 340px;
             text-align: center;
-            max-width: 380px;
-            width: 90%;
-            /* Ombre portée dure "pixel art" */
-            box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.4);
             animation: slideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
 
@@ -69,32 +60,10 @@
             to   { opacity: 1; transform: translateX(0); }
         }
 
-        .title {
-            font-size: 2.2rem;
-            font-weight: 900;
-            margin-bottom: 0.5rem;
-            color: #fff;
-            /* Contour texte "RPG" */
-            text-shadow: 
-                -2px -2px 0 #6b4028,
-                 2px -2px 0 #6b4028,
-                -2px  2px 0 #6b4028,
-                 2px  2px 0 #6b4028,
-                 4px  4px 0 rgba(0,0,0,0.3);
-            letter-spacing: 1px;
-        }
-
-        .subtitle {
-            font-size: 1rem;
-            color: #4a2e1b;
-            margin-bottom: 2rem;
-            font-weight: 700;
-        }
-
         .button-group {
             display: flex;
             flex-direction: column;
-            gap: 1.2rem;
+            gap: 1.5rem;
         }
 
         .btn {
@@ -124,9 +93,14 @@
             box-shadow: 0 6px 0 #215A9E;
         }
 
+        .btn-tuto {
+            background: #F5A623; /* Jaune doré RPG */
+            box-shadow: 0 6px 0 #A87114;
+        }
+
         .btn-controller {
-            background: #D0021B; /* Rouge RPG */
-            box-shadow: 0 6px 0 #7A0110;
+            background: #5bbd42; /* Vert RPG */
+            box-shadow: 0 6px 0 #2b6c1d;
         }
 
         .btn:hover {
@@ -134,14 +108,16 @@
             filter: brightness(1.1);
         }
         .btn-game:hover { box-shadow: 0 4px 0 #215A9E; }
-        .btn-controller:hover { box-shadow: 0 4px 0 #7A0110; }
+        .btn-tuto:hover { box-shadow: 0 4px 0 #A87114; }
+        .btn-controller:hover { box-shadow: 0 4px 0 #2b6c1d; }
 
         .btn:active {
             transform: translateY(6px);
             filter: brightness(0.9);
         }
         .btn-game:active { box-shadow: 0 0 0 #215A9E; }
-        .btn-controller:active { box-shadow: 0 0 0 #7A0110; }
+        .btn-tuto:active { box-shadow: 0 0 0 #A87114; }
+        .btn-controller:active { box-shadow: 0 0 0 #2b6c1d; }
 
 
         .footer {
@@ -161,19 +137,17 @@
     <img id="bg-anim" src="image/pixil-gif-drawing%20(1).gif" alt="">
 
     <div class="container">
-        <h1 class="title">Dookey Ascension</h1>
-        <p class="subtitle">Sélectionnez votre destination</p>
-
         <div class="button-group">
             <a href="/display" class="btn btn-game">
                 Lancer l'Écran de Jeu
+            </a>
+            <a href="#" class="btn btn-tuto">
+                Tutoriel
             </a>
             <a href="/controller" class="btn btn-controller">
                 Rejoindre une Partie
             </a>
         </div>
-
-        <div class="footer">Dookey Ascension — Système Multijoueur WebSocket</div>
     </div>
 
     <!-- Musique de fond -->
