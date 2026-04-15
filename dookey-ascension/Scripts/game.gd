@@ -45,6 +45,7 @@ var noms_equipes : Array[String] = ["Équipe 1", "Équipe 2", "Équipe 3", "Équ
 # HUD
 var hud_layer    : CanvasLayer
 var hud_label    : Label
+var hud_label_steps : Label   # countdown de pas pendant le déplacement
 var temp_label_chrono: Label
 var roue_instance: Node2D       # instance de la scène Roue dans le HUD
 
@@ -66,6 +67,11 @@ var boss_card_0   : PanelContainer = null
 var boss_card_1   : PanelContainer = null
 var boss_timer_lbl: Label        = null
 var boss_layer     : CanvasLayer  = null
+
+# HUD équipes (panneau top-right)
+var nb_joueurs_debut    : Dictionary = {}  # {equipe_idx -> nb initial}
+var panel_equipes_hud   : PanelContainer = null
+var labels_equipes_hud  : Array = []
 
 # ═══════════════════════════════════════════════════════════════════════════
 func _ready() -> void:
@@ -104,6 +110,7 @@ func _ready() -> void:
 	_mettre_a_jour_hud()
 	
 	WebSocketServer.verrouiller_salle()
+	_initialiser_compteurs_equipes()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Construit les noms d'équipes (Utilise toujours les couleurs fixes maintenant)
@@ -135,6 +142,22 @@ func _creer_hud() -> void:
 	hud_label.add_theme_constant_override("outline_size", 8)
 	hud_label.text = ""
 	hud_layer.add_child(hud_label)
+
+	# Label steps (compte à rebours pendant le déplacement) — sous le label cases
+	hud_label_steps = Label.new()
+	hud_label_steps.name = "LabelSteps"
+	hud_label_steps.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	hud_label_steps.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	hud_label_steps.offset_top    = 58
+	hud_label_steps.offset_bottom = 104
+	hud_label_steps.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hud_label_steps.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
+	hud_label_steps.add_theme_font_size_override("font_size", 40)
+	hud_label_steps.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	hud_label_steps.add_theme_color_override("font_outline_color", Color.BLACK)
+	hud_label_steps.add_theme_constant_override("outline_size", 9)
+	hud_label_steps.text = ""
+	hud_layer.add_child(hud_label_steps)
 
 	# Label chronomètre — centré au milieu
 	temp_label_chrono = Label.new()
@@ -350,8 +373,8 @@ func _avancer_pion(nb: int) -> void:
 	_mettre_a_jour_hud()
 
 func _deplacer_pion_relatif(data: Dictionary, nb: int, en_un_saut: bool = false) -> void:
-	var case_depart = data["case"]
-	var case_cible = clampi(case_depart + nb, 0, parcours.size() - 1)
+	var case_depart : int = data["case"]
+	var case_cible : int = clampi(case_depart + nb, 0, parcours.size() - 1)
 	
 	if case_cible == case_depart:
 		return
@@ -362,19 +385,33 @@ func _deplacer_pion_relatif(data: Dictionary, nb: int, en_un_saut: bool = false)
 		await _animer_saut_pion(tour_actuel, case_cible)
 		_mettre_a_jour_hud()
 	else:
-		# Avancer case par case
+		# Avancer case par case avec compte à rebours
+		var total_steps : int = abs(case_cible - case_depart)
+		var step_count  : int = total_steps
+		hud_label_steps.text = str(step_count)
+
 		if case_cible > case_depart:
 			for idx in range(case_depart + 1, case_cible + 1):
 				data["case"] = idx
 				await _animer_pion(tour_actuel, idx)
-				_mettre_a_jour_hud()
-				
-		# Reculer case par case
+				_mettre_a_jour_hud()   # met à jour hud_label + hud_label_steps
+				step_count -= 1
+				# Override : afficher le compte à rebours tant qu'il reste des pas
+				if step_count > 0:
+					hud_label_steps.text = str(step_count)
+			
+		# Reculer case par case avec compte à rebours
 		elif case_cible < case_depart:
 			for idx in range(case_depart - 1, case_cible - 1, -1):
 				data["case"] = idx
 				await _animer_pion(tour_actuel, idx)
 				_mettre_a_jour_hud()
+				step_count -= 1
+				# Override : afficher le compte à rebours tant qu'il reste des pas
+				if step_count > 0:
+					hud_label_steps.text = str(step_count)
+
+		hud_label_steps.text = "" # Effacer à la fin du mouvement
 
 # ───────────────────────────────────────────────────────────────────────────
 # ANIMATIONS DE DÉPLACEMENT
@@ -498,14 +535,28 @@ func _basculer_camera() -> void:
 func _afficher_tour() -> void:
 	print("─── Tour de : %s — tourne la roue ! ───" % pions[tour_actuel]["nom"])
 	vote_en_cours.clear()
-	temps_chrono = 10.0
-	chrono_actif = true
-	temp_label_chrono.text = "10"
-	temp_label_chrono.visible = true
 	_cacher_roue()
+	# Envoyer NOUVEAU_TOUR immédiatement (les manettes en sont informées)
 	var msg = "NOUVEAU_TOUR:%d:%s" % [tour_actuel, pions[tour_actuel]["nom"]]
 	WebSocketServer.etat_courant = msg
 	WebSocketServer.envoyer_message(msg)
+	_mettre_a_jour_panel_equipes()
+	# Banderole d'abord, puis suite selon bot ou humain
+	await _animer_debut_tour(tour_actuel)
+
+	var est_bot_tour : bool = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
+
+	if est_bot_tour:
+		# BOT : pas de timer, pas de roue — lancer automatique 1-6
+		var nb_bot := randi_range(1, 6)
+		print("[BOT %s] Lance automatiquement : %d" % [pions[tour_actuel]["nom"], nb_bot])
+		await _avancer_pion(nb_bot)
+	else:
+		# HUMAIN : démarrer le chrono normalement
+		temps_chrono = 10.0
+		chrono_actif = true
+		temp_label_chrono.text = "10"
+		temp_label_chrono.visible = true
 
 func _reprendre_tour() -> void:
 	print("─── Reprise à chaud du Tour de : %s ───" % pions[tour_actuel]["nom"])
@@ -550,7 +601,7 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	if dial_panel:
 		dial_panel.get_child(0).text = BOSS_DIALOGUES[randi() % BOSS_DIALOGUES.size()]
 		dial_panel.visible = true
-		await get_tree().create_timer(5.0).timeout
+		await get_tree().create_timer(2.8).timeout
 		dial_panel.visible = false
 
 	# 3. Afficher les cartes de vote
@@ -558,10 +609,17 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	boss_card_1.visible = true
 	boss_timer_lbl.visible = true
 
-	# 4. Chrono 10 secondes
+	# 4. Chrono 10 secondes (ou saut si c'est un bot)
+	var est_bot : bool = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
 	boss_chrono_actif = true
 	boss_chrono_temps = 10.0
-	await get_tree().create_timer(10.5).timeout  # +0.5s de marge
+	
+	if est_bot:
+		boss_votes[0] = 1 # Le bot vote automatiquement pour le recul
+		await get_tree().create_timer(1.0).timeout
+	else:
+		await get_tree().create_timer(10.5).timeout  # +0.5s de marge
+		
 	boss_chrono_actif = false
 	boss_timer_lbl.visible = false
 
@@ -846,8 +904,17 @@ func _appliquer_malus_boss(gagnant: int, data: Dictionary) -> void:
 		# Séquence visuelle sur Godot
 		await _sequence_visuelle_elimination(equipe_idx, victimes)
 		
+		# Si l'équipe (non-bot) n'a plus de joueurs → explosion du pion !
+		var restants := 0
+		for p in WebSocketServer.equipes:
+			if WebSocketServer.equipes[p] == equipe_idx:
+				restants += 1
+		if restants == 0 and nb_joueurs_debut.get(equipe_idx, 0) > 0:
+			await _exploser_pion(equipe_idx)
+		
 		# Synchroniser la liste globale des équipes avec le serveur Node
 		WebSocketServer.notifier_mises_a_jour_equipes()
+		_mettre_a_jour_panel_equipes()  # Mettre à jour le compteur d'équipe
 		
 		var msg_elim = "BOSS_ELIMINES:" + str(nb_elimines)
 		WebSocketServer.envoyer_message(msg_elim)
@@ -942,3 +1009,211 @@ func _sur_boss_vote(option: int, pseudo: String) -> void:
 			print("[Boss] Vote REJETÉ de %s (Équipe %d) - Seule l'équipe %d peut voter !" % [pseudo, team_idx, tour_actuel])
 	else:
 		print("[Boss] Vote REJETÉ de %s - Équipe inconnue." % pseudo)
+# ═══════════════════════════════════════════════════════════════════════════
+# PANNEAU ÉQUIPES (TOP-RIGHT HUD)
+# ═══════════════════════════════════════════════════════════════════════════
+func _initialiser_compteurs_equipes() -> void:
+	nb_joueurs_debut = {0: 0, 1: 0, 2: 0, 3: 0}
+	for pseudo in WebSocketServer.equipes:
+		var idx = WebSocketServer.equipes[pseudo]
+		nb_joueurs_debut[idx] = nb_joueurs_debut.get(idx, 0) + 1
+	_creer_panel_equipes_hud()
+	_mettre_a_jour_panel_equipes()
+
+func _creer_panel_equipes_hud() -> void:
+	panel_equipes_hud = PanelContainer.new()
+	var pstyle = StyleBoxEmpty.new()
+	panel_equipes_hud.add_theme_stylebox_override("panel", pstyle)
+	panel_equipes_hud.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	panel_equipes_hud.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	panel_equipes_hud.grow_vertical = Control.GROW_DIRECTION_END
+	panel_equipes_hud.offset_right = -15
+	panel_equipes_hud.offset_top = 15
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel_equipes_hud.add_child(vbox)
+
+	labels_equipes_hud.clear()
+	for i in range(4):
+		var lbl = Label.new()
+		lbl.add_theme_font_size_override("font_size", 18)
+		lbl.add_theme_color_override("font_color", Color.WHITE)
+		lbl.add_theme_constant_override("outline_size", 6)
+		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		vbox.add_child(lbl)
+		labels_equipes_hud.append(lbl)
+
+	hud_layer.add_child(panel_equipes_hud)
+
+func _mettre_a_jour_panel_equipes() -> void:
+	if not panel_equipes_hud:
+		return
+	for i in range(4):
+		if i >= labels_equipes_hud.size():
+			break
+		var lbl : Label = labels_equipes_hud[i]
+		# Compter les joueurs actuels dans l'équipe
+		var nb_actuel := 0
+		for pseudo in WebSocketServer.equipes:
+			if WebSocketServer.equipes[pseudo] == i:
+				nb_actuel += 1
+		var nb_initial : int = nb_joueurs_debut.get(i, 0)
+		var couleur_equipe : Color = WebSocketServer.COULEURS_EQUIPES[i]
+		var nom_equipe : String = WebSocketServer.NOMS_EQUIPES[i]
+		var compteur : String = "Bot" if nb_initial == 0 else "%d/%d" % [nb_actuel, nb_initial]
+		if i == tour_actuel:
+			# Équipe active : couleur vive + flèche
+			lbl.add_theme_color_override("font_color", couleur_equipe.lightened(0.3))
+			lbl.text = "▶ %s  %s" % [nom_equipe, compteur]
+		else:
+			# Équipes inactives : blanc
+			lbl.add_theme_color_override("font_color", Color.WHITE)
+			lbl.text = "  %s  %s" % [nom_equipe, compteur]
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ANIMATION DÉBUT DE TOUR (bande colorée avec les pseudos)
+# ═══════════════════════════════════════════════════════════════════════════
+func _animer_debut_tour(equipe_idx: int) -> void:
+	var sw := get_viewport().get_visible_rect().size.x
+	var sh := get_viewport().get_visible_rect().size.y
+	var team_color : Color  = WebSocketServer.COULEURS_EQUIPES[equipe_idx]
+	var team_name  : String = WebSocketServer.NOMS_EQUIPES[equipe_idx]
+
+	# Collecter les pseudos actifs de l'équipe
+	var membres : Array[String] = []
+	for pseudo in WebSocketServer.equipes:
+		if WebSocketServer.equipes[pseudo] == equipe_idx:
+			membres.append(pseudo)
+
+	var est_bot : bool = (nb_joueurs_debut.get(equipe_idx, 0) == 0)
+
+	# Couche temporaire (en dessous du HUD boss, au dessus du HUD normal)
+	var anim_layer = CanvasLayer.new()
+	anim_layer.layer = 15
+	add_child(anim_layer)
+
+	# Bande colorée — toujours aux couleurs de l'équipe
+	var strip_h : float = 110.0 if est_bot else 190.0
+	var strip_alpha : float = 0.85
+	var strip_color := Color(team_color.r, team_color.g, team_color.b, 0.0)
+
+	var strip = ColorRect.new()
+	strip.color = strip_color
+	strip.size = Vector2(sw, strip_h)
+	strip.position = Vector2(0.0, (sh - strip_h) / 2.0)
+	anim_layer.add_child(strip)
+
+	var tw_in = create_tween()
+	tw_in.tween_property(strip, "color:a", strip_alpha, 0.35)
+	await tw_in.finished
+
+	# Nom de l'équipe (texte différent selon bot ou humain)
+	var lbl_nom = Label.new()
+	if est_bot:
+		lbl_nom.text = team_name.to_upper() + " — TOUR DU BOT"
+	else:
+		lbl_nom.text = team_name.to_upper() + " — À VOUS DE JOUER !"
+	lbl_nom.size = Vector2(sw, 55.0)
+	lbl_nom.position = Vector2(0.0, 18.0 if not est_bot else 28.0)
+	lbl_nom.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_nom.add_theme_font_size_override("font_size", 28 if not est_bot else 22)
+	lbl_nom.add_theme_color_override("font_color", Color.WHITE)
+	lbl_nom.add_theme_constant_override("outline_size", 10)
+	lbl_nom.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	strip.add_child(lbl_nom)
+
+	# Pseudos actifs — seulement pour les équipes humaines
+	var lbl_pseudos : Label = null
+	if not est_bot:
+		var texte_pseudos := ""
+		if membres.is_empty():
+			texte_pseudos = "(aucun joueur)"
+		else:
+			texte_pseudos = "  \u2022  ".join(membres)
+		lbl_pseudos = Label.new()
+		lbl_pseudos.text = texte_pseudos
+		lbl_pseudos.size = Vector2(sw, 90.0)
+		lbl_pseudos.position = Vector2(0.0, 88.0)
+		lbl_pseudos.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl_pseudos.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl_pseudos.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lbl_pseudos.add_theme_font_size_override("font_size", 22)
+		lbl_pseudos.add_theme_color_override("font_color", Color.WHITE)
+		lbl_pseudos.add_theme_constant_override("outline_size", 7)
+		lbl_pseudos.add_theme_color_override("font_outline_color", Color.BLACK)
+		strip.add_child(lbl_pseudos)
+
+	# Délai avant de disparaître (plus court pour les bots)
+	await get_tree().create_timer(1.5 if est_bot else 3.0).timeout
+
+
+	# Fade out
+	var tw_out = create_tween()
+	tw_out.tween_property(strip, "color:a", 0.0, 0.4)
+	tw_out.parallel().tween_property(lbl_nom, "modulate:a", 0.0, 0.4)
+	tw_out.parallel().tween_property(lbl_pseudos, "modulate:a", 0.0, 0.4)
+	await tw_out.finished
+
+	anim_layer.queue_free()
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EXPLOSION DU PION (quand toute l’équipe est éliminée)
+# ═══════════════════════════════════════════════════════════════════════════
+func _exploser_pion(equipe_idx: int) -> void:
+	var pion_node : Node2D = pions[equipe_idx]["node"]
+	if not is_instance_valid(pion_node):
+		return
+	
+	var base_scale  := pion_node.scale
+	var team_color  : Color = WebSocketServer.COULEURS_EQUIPES[equipe_idx]
+	var pos_monde   := pion_node.global_position
+	
+	# 1. Secousse caméra violente
+	_secouer_camera(30.0, 0.7)
+	
+	# 2. Flashs de couleur rapides (orange → blanc, x3)
+	var tw_flash = create_tween()
+	for _f in range(4):
+		tw_flash.tween_property(pion_node, "modulate", Color(2.0, 0.5, 0.0, 1.0), 0.06)
+		tw_flash.tween_property(pion_node, "modulate", Color.WHITE, 0.06)
+	
+	# 3. Gonflement explosif
+	var tw_big = create_tween()
+	tw_big.set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tw_big.tween_property(pion_node, "scale", base_scale * 3.5, 0.22)
+	await get_tree().create_timer(0.22).timeout
+	
+	# 4. Débris volants en world space (Polygon2D)
+	var couleurs_debris : Array[Color] = [team_color, Color.ORANGE_RED, Color.YELLOW, Color.WHITE]
+	for d in range(10):
+		var taille : float = randf_range(7.0, 20.0)
+		var debris = Polygon2D.new()
+		debris.polygon = PackedVector2Array([
+			Vector2(-taille, -taille), Vector2(taille, -taille),
+			Vector2(taille,  taille),  Vector2(-taille,  taille)
+		])
+		debris.color = couleurs_debris[d % couleurs_debris.size()]
+		debris.global_position = pos_monde
+		debris.rotation = randf_range(0.0, TAU)
+		get_parent().add_child(debris)
+		
+		var angle  := (float(d) / 10.0) * TAU + randf_range(-0.5, 0.5)
+		var dist   := randf_range(90.0, 260.0)
+		var target := pos_monde + Vector2(cos(angle), sin(angle)) * dist
+		
+		var tw_d = create_tween().set_parallel(true)
+		tw_d.tween_property(debris, "global_position", target, 0.65)
+		tw_d.tween_property(debris, "rotation", debris.rotation + randf_range(-TAU, TAU), 0.65)
+		tw_d.tween_property(debris, "modulate:a", 0.0, 0.65)
+		tw_d.chain().tween_callback(debris.queue_free)
+	
+	# 5. Rétrécissement et disparition du pion
+	var tw_out = create_tween().set_parallel(true)
+	tw_out.tween_property(pion_node, "scale", Vector2.ZERO, 0.35)
+	tw_out.tween_property(pion_node, "modulate:a", 0.0, 0.35)
+	await tw_out.finished
+	
+	# Le pion reste invisible pour le reste de la partie
+	pion_node.visible = false
+	print("[Équipe %d] Pion éliminé et explosé !" % equipe_idx)
