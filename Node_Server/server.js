@@ -151,6 +151,16 @@ wss.on('connection', (ws, req) => {
 
         ws.on('close', () => {
             console.log(`[Serveur] La salle ${roomCode} (Jeu Godot) s'est déconnectée.`);
+            if (rooms.has(roomCode)) {
+                const room = rooms.get(roomCode);
+                // Fermer toutes les connexions controllers pour éviter les zombies
+                for (const ctrlWs of room.controllers) {
+                    if (ctrlWs.readyState === WebSocket.OPEN) {
+                        ctrlWs.send('JEU_DECONNECTE');
+                        ctrlWs.close();
+                    }
+                }
+            }
             rooms.delete(roomCode);
         });
 
@@ -210,7 +220,7 @@ wss.on('connection', (ws, req) => {
             const msgStr = isBinary ? message.toString('utf8') : message.toString();
             
             // Filtrage par équipe : seuls les joueurs de l'équipe active peuvent voter
-            const isVote = msgStr.startsWith('CLIC:') || msgStr.startsWith('VOTES:') || msgStr === 'LANCER';
+            const isVote = msgStr.startsWith('CLIC:') || msgStr.startsWith('VOTES:') || msgStr === 'LANCER' || msgStr.startsWith('BOSS_VOTE:');
             if (isVote && room.equipes.size > 0 && room.currentTeam >= 0) {
                 const myTeam = room.equipes.get(pseudo);
                 if (myTeam === undefined || myTeam !== room.currentTeam) {
@@ -222,7 +232,11 @@ wss.on('connection', (ws, req) => {
             
             // Forward controller messages only to the Godot game client in this room
             if (room.gameWs && room.gameWs.readyState === WebSocket.OPEN) {
-                room.gameWs.send(msgStr);
+                let finalMsg = msgStr;
+                if (msgStr.startsWith('BOSS_VOTE:')) {
+                    finalMsg += ":" + pseudo;
+                }
+                room.gameWs.send(finalMsg);
             } else {
                 console.log(`[Serveur] Message reçu dans ${upperCode} mais le jeu n'est plus connecté.`);
             }

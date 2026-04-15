@@ -325,10 +325,16 @@ func _avancer_pion(nb: int) -> void:
 	# Petite pause respiratoire pour voir le pion atterrir avant le changement de caméra
 	await get_tree().create_timer(0.8).timeout
 
-	# Vérifier si le pion tombe sur la case du BOSS
+	# Vérifier si le pion tombe sur la case du BOSS (déclenchement principal)
 	var atlas_boss_check = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
 	if atlas_boss_check == BOSS_TILE:
 		print("💀 [%s] Tombe sur la case DOOKEY BOSS !" % data["nom"])
+		await _sequence_dookey_boss(data)
+
+	# Vérifier via un éventuel effet de case spéciale si le pion a aussi atterri sur le Boss
+	var atlas_apres_effet = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
+	if atlas_apres_effet == BOSS_TILE and not boss_vote_actif:
+		print("💀 [%s] Atterrit sur le BOSS via un effet de case !" % data["nom"])
 		await _sequence_dookey_boss(data)
 
 	en_deplacement = false
@@ -527,7 +533,9 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	
 	boss_votes = {0: 0, 1: 0}
 	boss_vote_actif = true
-	WebSocketServer.boss_vote_recu.connect(_sur_boss_vote)
+	# Garde anti-double-connexion du signal
+	if not WebSocketServer.boss_vote_recu.is_connected(_sur_boss_vote):
+		WebSocketServer.boss_vote_recu.connect(_sur_boss_vote)
 	WebSocketServer.envoyer_message("BOSS_EVENT")
 
 	_creer_boss_ui()
@@ -595,6 +603,12 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	boss_layer.queue_free()
 	boss_layer = null
 	boss_overlay = null
+	boss_sprite = null
+	boss_card_0 = null
+	boss_card_1 = null
+	boss_pct_0 = null
+	boss_pct_1 = null
+	boss_timer_lbl = null
 	boss_vote_actif = false
 
 func _creer_boss_ui() -> void:
@@ -874,12 +888,11 @@ func _sequence_visuelle_elimination(equipe_idx: int, pseudos: Array) -> void:
 	for pseudo in pseudos:
 		var lbl_pseudo = Label.new()
 		lbl_pseudo.text = pseudo
-		lbl_pseudo.set_anchors_preset(Control.PRESET_CENTER)
-		lbl_pseudo.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		lbl_pseudo.grow_vertical = Control.GROW_DIRECTION_BOTH
+		# Utiliser FULL_RECT pour que l'alignement centré fonctionne sur toute la largeur de la bande
+		lbl_pseudo.set_anchors_preset(Control.PRESET_FULL_RECT)
 		lbl_pseudo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl_pseudo.position = Vector2(0, 50)
-		lbl_pseudo.size = Vector2(sw, 80)
+		lbl_pseudo.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl_pseudo.offset_top = 20 # Décalage pour ne pas chevaucher le titre
 		lbl_pseudo.add_theme_font_size_override("font_size", 60)
 		lbl_pseudo.add_theme_color_override("font_color", Color.WHITE)
 		lbl_pseudo.add_theme_constant_override("outline_size", 12)
@@ -891,19 +904,29 @@ func _sequence_visuelle_elimination(equipe_idx: int, pseudos: Array) -> void:
 		var tw = create_tween()
 		tw.tween_property(lbl_pseudo, "modulate:a", 1.0, 0.4)
 		await tw.finished
-		await get_tree().create_timer(1.0).timeout
+		await get_tree().create_timer(2.0).timeout # Plus long pour lire
 		
 		# Griser
 		var tw_gray = create_tween()
-		tw_gray.tween_property(lbl_pseudo, "modulate", Color(0.4, 0.4, 0.4, 0.7), 0.5)
+		tw_gray.tween_property(lbl_pseudo, "modulate", Color(0.4, 0.4, 0.4, 0.8), 0.6)
 		await tw_gray.finished
-		await get_tree().create_timer(0.3).timeout
+		await get_tree().create_timer(1.0).timeout # Pause sur le pseudo grisé
 		lbl_pseudo.queue_free()
 
+	await get_tree().create_timer(1.0).timeout # Pause finale sur la bande
 	banner.queue_free()
 
-func _sur_boss_vote(option: int) -> void:
+func _sur_boss_vote(option: int, pseudo: String) -> void:
 	if not boss_vote_actif:
 		return
-	boss_votes[option] += 1
-	print("[Boss] Vote reçu - Option %d | Scores : %s" % [option, str(boss_votes)])
+	
+	# Vérifier si le joueur appartient à l'équipe qui joue ce tour
+	if WebSocketServer.equipes.has(pseudo):
+		var team_idx = WebSocketServer.equipes[pseudo]
+		if team_idx == tour_actuel:
+			boss_votes[option] += 1
+			print("[Boss] Vote accepté de %s (Équipe %d) pour l'option %d | Scores : %s" % [pseudo, team_idx, option, str(boss_votes)])
+		else:
+			print("[Boss] Vote REJETÉ de %s (Équipe %d) - Seule l'équipe %d peut voter !" % [pseudo, team_idx, tour_actuel])
+	else:
+		print("[Boss] Vote REJETÉ de %s - Équipe inconnue." % pseudo)

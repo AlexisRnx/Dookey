@@ -27,6 +27,7 @@ let animFrameId = null;
 // Variables pour l'interface de jeu Controller
 let aVoteCeTour = false;
 let tourActuel = -1;
+let myTeamIndex = -1; // Index de mon équipe (0-3)
 let nomEquipeTour = "";
 let position = 0;
 let direction = 1;
@@ -133,19 +134,24 @@ function initWebSocket(code, pseudo) {
 
         // Phase 2 : En Jeu
         if (data === 'BOSS_EVENT') {
-            // Masquer la barre, afficher l'écran de vote boss
-            bossAVote = false;
-            document.getElementById('boss-card-0').className = 'boss-card';
-            document.getElementById('boss-card-1').className = 'boss-card';
-            document.getElementById('boss-vote-status').innerText = 'Touchez une option pour voter...';
-            document.getElementById('ecran-cliquable').style.display = 'none';
-            const bossScreen = document.getElementById('boss-vote-screen');
-            bossScreen.style.display = 'flex';
+            // Seuls ceux qui sont dans l'équipe active voient le vote
+            if (myTeamIndex === tourActuel) {
+                bossAVote = false;
+                document.getElementById('boss-card-0').className = 'boss-card';
+                document.getElementById('boss-card-1').className = 'boss-card';
+                document.getElementById('boss-vote-status').innerText = 'Touchez une option pour voter...';
+                document.getElementById('ecran-cliquable').style.display = 'none';
+                const bossScreen = document.getElementById('boss-vote-screen');
+                bossScreen.style.display = 'flex';
+            } else {
+                console.log("[Boss] Une autre équipe est jugée...");
+            }
         } else if (data.startsWith('BOSS_RESULT:')) {
             const gagnant = parseInt(data.split(':')[1]);
             document.getElementById('boss-card-' + gagnant).classList.add('winner');
             document.getElementById('boss-card-' + (1 - gagnant)).classList.add('loser');
-            document.getElementById('boss-vote-status').innerText = gagnant === 0 ? 'Recul de 10 cases...' : '10% de l’équipe éliminée...';
+            document.getElementById('boss-vote-status').innerText = gagnant === 0 ? 'Recul de 10 cases...' : "10% de l'\u00e9quipe \u00e9limin\u00e9e...";
+
         } else if (data === 'BOSS_END') {
             // Cacher l'écran boss, rétablir la barre
             document.getElementById('boss-vote-screen').style.display = 'none';
@@ -196,6 +202,7 @@ function initWebSocket(code, pseudo) {
              evaluerVerrouillageBase();
         } else if (data.startsWith("VOTRE_EQUIPE:")) {
             const idx = parseInt(data.split(":")[1]);
+            myTeamIndex = idx;
             afficherBadgeEquipe(idx);
             // Afficher la bannière colorée pleine largeur
             const banner = document.getElementById('team-banner');

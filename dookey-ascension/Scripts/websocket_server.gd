@@ -12,7 +12,7 @@ signal lancer_roue_web()
 signal joueur_rejoint(pseudo: String)
 signal joueur_quitte(pseudo: String)
 signal code_salle_recu(code: String)
-signal boss_vote_recu(option: int)
+signal boss_vote_recu(option: int, pseudo: String)
 
 var _ws := WebSocketPeer.new()
 var est_connecte := false
@@ -157,11 +157,13 @@ func _traiter_message(message: String) -> void:
 	elif message == "LANCER":
 		lancer_roue_web.emit()
 	
-	# ── Format BOSS_VOTE:0 ou BOSS_VOTE:1 (vote malus boss) ────────────────────
+	# ── Format BOSS_VOTE:0:pseudo ────────────────────
 	elif message.begins_with("BOSS_VOTE:"):
-		var option := message.substr(10).strip_edges().to_int()
-		if option == 0 or option == 1:
-			boss_vote_recu.emit(option)
+		var parts := message.split(":")
+		if parts.size() >= 3:
+			var option := parts[1].to_int()
+			var pseudo := parts[2]
+			boss_vote_recu.emit(option, pseudo)
 
 # ── Envoie d'un message vers le serveur Node (qui relayera à tous les téléphones)
 func envoyer_message(msg: String) -> void:
