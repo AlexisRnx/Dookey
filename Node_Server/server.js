@@ -15,6 +15,9 @@ app.get('/controller', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/controller/index.html'));
 });
 
+// Servir le dossier Tutoriel
+app.use('/tutoriel', express.static(path.join(__dirname, 'Tutoriel', 'Tutoriel')));
+
 // Serve the Godot exported game under the URL "/display"
 app.use('/display', express.static(path.join(__dirname, 'godot')));
 app.get('/display', (req, res) => {
