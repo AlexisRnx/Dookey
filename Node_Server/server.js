@@ -23,8 +23,13 @@ app.get('/controller', (req, res) => {
 // Servir le dossier Tutoriel
 app.use('/tutoriel', express.static(path.join(__dirname, 'Tutoriel', 'Tutoriel')));
 
+express.static.mime.define({'application/wasm': ['wasm']});
 app.use('/display', express.static(path.join(__dirname, 'godot')));
 app.get('/display', (req, res) => {
+    // Force le slash final pour que les fichiers JS/WASM relatifs chargent bien depuis /display/
+    if (!req.originalUrl.endsWith('/')) {
+        return res.redirect('/display/');
+    }
     res.sendFile(path.join(__dirname, 'godot', 'Dookey Ascension.html'));
 });
 

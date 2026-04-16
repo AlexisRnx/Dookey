@@ -289,6 +289,7 @@ func _afficher_page2() -> void:
 		var sep = HSeparator.new()
 		vb.add_child(sep)
 		
+		var cb_joueurs := 0
 		for pseudo in WebSocketServer.equipes:
 			if WebSocketServer.equipes[pseudo] == i:
 				var lbl = Label.new()
