@@ -276,7 +276,7 @@ func _sur_lancer_roue_web(pseudo: String) -> void:
 	_verifier_lancement_auto_equipe()
 
 func _verifier_lancement_auto_equipe() -> void:
-	if not roue_instance.visible or not chrono_actif:
+	if not chrono_actif:
 		return
 
 	# Compter combien d'humains sont dans l'équipe actuelle
@@ -285,11 +285,12 @@ func _verifier_lancement_auto_equipe() -> void:
 		if WebSocketServer.equipes[p] == tour_actuel:
 			nb_humains_team += 1
 	
-	# Si tout le monde a voté, on lance !
+	# Si tout le monde a voté, on lance ! (et on s'assure qu'il y a au moins un humain)
 	if pseudos_ayant_vote.size() >= nb_humains_team and nb_humains_team > 0:
 		print("[Game] Toute l'équipe a voté (%d/%d). Lancement immédiat." % [pseudos_ayant_vote.size(), nb_humains_team])
 		chrono_actif = false
 		temp_label_chrono.visible = false
+		_montrer_roue() # On la montre car elle était peut-être cachée
 		var noeud_roue: Node2D = roue_instance.get_node("Node2D")
 		noeud_roue.lancer_roue_depuis_web()
 
