@@ -91,6 +91,7 @@ var maj_votes          := {}
 var maj_vote_actif     := false
 var maj_votes_phase    := 1  # 1 = choisir option, 2 = choisir cible
 var maj_pseudos_votes  : Array = []  # anti double-vote
+var pseudos_ayant_vote : Array = []  # Option B : Attente de tous les joueurs de l'équipe
 var maj_audio_player   : AudioStreamPlayer = null
 
 # Portail QTE
@@ -251,28 +252,44 @@ func _sur_resultat_roue(chiffre: int) -> void:
 	_avancer_pion(chiffre)
 
 # ── Reçoit les votes du site Web via WebSocket ────────────────────────────
-func _sur_votes_recus(votes: Dictionary) -> void:
+func _sur_votes_recus(votes: Dictionary, pseudo: String) -> void:
+	if not pseudo in pseudos_ayant_vote:
+		pseudos_ayant_vote.append(pseudo)
+		
 	for chiffre in votes:
 		if vote_en_cours.has(chiffre):
 			vote_en_cours[chiffre] += votes[chiffre]
 		else:
 			vote_en_cours[chiffre] = votes[chiffre]
-	print("[Game] Vote enregistré ! Total des votes agrégés : ", vote_en_cours)
+	print("[Game] Vote de %s enregistré !" % pseudo)
+	_verifier_lancement_auto_equipe()
 
 # ── Le site a envoyé CLIC → ignore si déjà en mouvement ────────────────────
-func _sur_lancer_roue_web() -> void:
+func _sur_lancer_roue_web(pseudo: String) -> void:
 	# Si on est en déplacement ou sur un vote de boss, on ignore
 	if en_deplacement or boss_vote_actif:
 		return
 		
-	# Si la roue est visible, on peut forcer le lancement
-	if roue_instance.visible:
-		# IMPORTANT : Si le chrono était actif (tour humain), on l'arrête pour éviter le double trigger
-		if chrono_actif:
-			print("[Game] Clic reçu : arrêt du chrono et lancement immédiat.")
-			chrono_actif = false
-			temp_label_chrono.visible = false
-			
+	if not pseudo in pseudos_ayant_vote:
+		pseudos_ayant_vote.append(pseudo)
+
+	_verifier_lancement_auto_equipe()
+
+func _verifier_lancement_auto_equipe() -> void:
+	if not roue_instance.visible or not chrono_actif:
+		return
+
+	# Compter combien d'humains sont dans l'équipe actuelle
+	var nb_humains_team = 0
+	for p in WebSocketServer.equipes:
+		if WebSocketServer.equipes[p] == tour_actuel:
+			nb_humains_team += 1
+	
+	# Si tout le monde a voté, on lance !
+	if pseudos_ayant_vote.size() >= nb_humains_team and nb_humains_team > 0:
+		print("[Game] Toute l'équipe a voté (%d/%d). Lancement immédiat." % [pseudos_ayant_vote.size(), nb_humains_team])
+		chrono_actif = false
+		temp_label_chrono.visible = false
 		var noeud_roue: Node2D = roue_instance.get_node("Node2D")
 		noeud_roue.lancer_roue_depuis_web()
 
@@ -611,6 +628,7 @@ func _afficher_tour() -> void:
 
 	print("─── Tour de : %s — tourne la roue ! ───" % pions[tour_actuel]["nom"])
 	vote_en_cours.clear()
+	pseudos_ayant_vote.clear() # Vider pour le nouveau tour
 	_cacher_roue()
 	var msg = "NOUVEAU_TOUR:%d:%s" % [tour_actuel, pions[tour_actuel]["nom"]]
 	WebSocketServer.etat_courant = msg

@@ -1,7 +1,7 @@
 extends Node
 
-signal votes_recus(votes: Dictionary)
-signal lancer_roue_web()
+signal votes_recus(votes: Dictionary, pseudo: String)
+signal lancer_roue_web(pseudo: String)
 signal joueur_rejoint(pseudo: String)
 signal joueur_quitte(pseudo: String)
 signal code_salle_recu(code: String)
@@ -117,8 +117,15 @@ func _traiter_message(message: String) -> void:
 		joueur_quitte.emit(pseudo)
 
 	elif message.begins_with("VOTES:"):
-		var partie := message.substr(6)  # Tout après "VOTES:"
-		var votes  := {}
+		var total_partie := message.substr(6)
+		var last_colon = total_partie.rfind(":")
+		var partie = total_partie
+		var pseudo = "Anonyme"
+		if last_colon != -1:
+			partie = total_partie.substr(0, last_colon)
+			pseudo = total_partie.substr(last_colon + 1)
+			
+		var votes := {}
 		for entry in partie.split(","):
 			var kv := entry.split("=")
 			if kv.size() == 2:
@@ -127,18 +134,25 @@ func _traiter_message(message: String) -> void:
 				if chiffre >= 1 and chiffre <= 6 and nb_votes > 0:
 					votes[chiffre] = nb_votes
 		if votes.size() > 0:
-			votes_recus.emit(votes)
+			votes_recus.emit(votes, pseudo)
 
 	elif message.begins_with("CLIC:"):
-		var chiffre := message.substr(5).strip_edges().to_int()
+		var total_partie := message.substr(5).strip_edges()
+		var last_colon = total_partie.rfind(":")
+		var chiffre_str = total_partie
+		var pseudo = "Anonyme"
+		if last_colon != -1:
+			chiffre_str = total_partie.substr(0, last_colon)
+			pseudo = total_partie.substr(last_colon + 1)
+			
+		var chiffre := chiffre_str.to_int()
 		if chiffre >= 1 and chiffre <= 6:
-			# On crée un vote unique pour ce chiffre qui remplacera tout (100% de la roue)
 			var votes := { chiffre: 1 }
-			votes_recus.emit(votes)
-			lancer_roue_web.emit()
+			votes_recus.emit(votes, pseudo)
+			lancer_roue_web.emit(pseudo)
 
 	elif message == "LANCER":
-		lancer_roue_web.emit()
+		lancer_roue_web.emit("Anonyme")
 	
 	elif message.begins_with("BOSS_VOTE:"):
 		var parts := message.split(":")

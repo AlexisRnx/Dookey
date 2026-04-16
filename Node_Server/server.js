@@ -223,11 +223,11 @@ wss.on('connection', (ws, req) => {
             
             if (room.gameWs && room.gameWs.readyState === WebSocket.OPEN) {
                 let finalMsg = msgStr;
-                if (msgStr.startsWith('BOSS_VOTE:') || msgStr.startsWith('PORTAIL_QTE_VOTE:')) {
+                // On ajoute le pseudo pour CLIC et VOTES pour pouvoir compter les votes uniques par joueur dans Godot
+                if (msgStr.startsWith('BOSS_VOTE:') || msgStr.startsWith('PORTAIL_QTE_VOTE:') || msgStr.startsWith('CLIC:') || msgStr.startsWith('VOTES:')) {
                     finalMsg += ":" + pseudo;
                 }
                 room.gameWs.send(finalMsg);
-                console.log(`[Serveur] Message reçu dans ${upperCode} mais le jeu n'est plus connecté.`);
             }
         });
 
