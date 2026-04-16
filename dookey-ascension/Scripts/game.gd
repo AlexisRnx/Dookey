@@ -412,9 +412,7 @@ func _avancer_pion(nb: int) -> void:
 
 	_sauvegarder_partie()
 	
-	_basculer_camera()
 	_afficher_tour()
-	_mettre_a_jour_hud()
 
 func _deplacer_pion_relatif(data: Dictionary, nb: int, en_un_saut: bool = false) -> void:
 	var case_depart : int = data["case"]
@@ -585,6 +583,9 @@ func _afficher_tour() -> void:
 		print("[Skip] %s éliminée, on passe." % pions[tour_actuel]["nom"])
 		tour_actuel = (tour_actuel + 1) % pions.size()
 		tours_verifies += 1
+
+	_basculer_camera()
+	_mettre_a_jour_hud()
 
 	print("─── Tour de : %s — tourne la roue ! ───" % pions[tour_actuel]["nom"])
 	vote_en_cours.clear()
@@ -936,8 +937,10 @@ func _sequence_dookey_majestueux(data: Dictionary) -> void:
 	chrono_actif = false
 	temp_label_chrono.visible = false
 	
-	maj_votes.clear()
+	maj_votes = {0: 0, 1: 0}
+	maj_pseudos_votes.clear()
 	maj_vote_actif = true
+	maj_votes_phase = 1
 	var est_bot : bool = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
 	
 	if not WebSocketServer.majestueux_vote_recu.is_connected(_sur_majestueux_vote):
@@ -990,10 +993,7 @@ func _sequence_dookey_majestueux(data: Dictionary) -> void:
 	boss_card_1.visible = true
 	boss_timer_lbl.visible = true
 	
-	# Phase 1 : init des votes AVANT les awaits pour ne rater aucun vote
-	maj_votes = {0: 0, 1: 0}
-	maj_pseudos_votes.clear()
-	maj_votes_phase = 1
+	# Phase 1 : démarrage du chrono (votes déjà initialisés au début)
 	boss_chrono_actif = true
 	boss_chrono_temps = 10.0
 	
