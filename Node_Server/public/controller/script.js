@@ -64,7 +64,7 @@ let qteAnimId = null;
 let lastTimeMain = 0;
 let lastTimeQte = 0;
 let portailInterval = null;
-const VITESSE_UNIFORME = 180; // Vitesse triplée pour rendre les barres beaucoup plus rapides
+const VITESSE_UNIFORME = 220; // Vitesse triplée pour rendre les barres beaucoup plus rapides
 
 const curseur = document.getElementById('curseur');
 const cases = document.querySelectorAll('.case-score');

@@ -55,6 +55,7 @@ var parcours       : Array[Vector2i]   = []
 var pions          : Array[Dictionary] = []   # { node, case, nom, camera }
 var tour_actuel    : int  = 0
 var en_deplacement : bool = false
+var tour_en_cours  : bool = false
 var est_restauration : bool = false
 
 var noms_equipes : Array[String] = ["Équipe 1", "Équipe 2", "Équipe 3", "Équipe 4"]
@@ -244,6 +245,8 @@ func _cacher_roue() -> void:
 
 # Appelé quand la roue émet resultat_roue(chiffre)
 func _sur_resultat_roue(chiffre: int) -> void:
+	if en_deplacement:
+		return
 	_cacher_roue()
 	_avancer_pion(chiffre)
 
@@ -256,12 +259,22 @@ func _sur_votes_recus(votes: Dictionary) -> void:
 			vote_en_cours[chiffre] = votes[chiffre]
 	print("[Game] Vote enregistré ! Total des votes agrégés : ", vote_en_cours)
 
-# ── Le site a envoyé CLIC → ignore si chrono en attente ────────────────────
+# ── Le site a envoyé CLIC → ignore si déjà en mouvement ────────────────────
 func _sur_lancer_roue_web() -> void:
-	if not en_deplacement and not chrono_actif and not boss_vote_actif:
-		if roue_instance.visible:
-			var noeud_roue: Node2D = roue_instance.get_node("Node2D")
-			noeud_roue.lancer_roue_depuis_web()
+	# Si on est en déplacement ou sur un vote de boss, on ignore
+	if en_deplacement or boss_vote_actif:
+		return
+		
+	# Si la roue est visible, on peut forcer le lancement
+	if roue_instance.visible:
+		# IMPORTANT : Si le chrono était actif (tour humain), on l'arrête pour éviter le double trigger
+		if chrono_actif:
+			print("[Game] Clic reçu : arrêt du chrono et lancement immédiat.")
+			chrono_actif = false
+			temp_label_chrono.visible = false
+			
+		var noeud_roue: Node2D = roue_instance.get_node("Node2D")
+		noeud_roue.lancer_roue_depuis_web()
 
 
 var dernier_secondes_sauvegardees := 10
@@ -357,6 +370,9 @@ func _plus_proche(depuis: Vector2i, liste: Array) -> Vector2i:
 
 
 func _avancer_pion(nb: int) -> void:
+	if en_deplacement:
+		print("[Warning] Tentative de déplacement alors que déjà en_deplacement=true. Ignoré.")
+		return
 	en_deplacement = true
 
 	var data : Dictionary = pions[tour_actuel]
@@ -412,6 +428,7 @@ func _avancer_pion(nb: int) -> void:
 
 	_sauvegarder_partie()
 	
+	tour_en_cours = false # On autorise le prochain tour
 	_afficher_tour()
 
 func _deplacer_pion_relatif(data: Dictionary, nb: int, en_un_saut: bool = false) -> void:
@@ -567,6 +584,11 @@ func _basculer_camera() -> void:
 		cam.enabled = (i == tour_actuel)
 
 func _afficher_tour() -> void:
+	if tour_en_cours:
+		print("[Warning] _afficher_tour appelé alors qu'un tour est déjà en cours. Ignoré.")
+		return
+	tour_en_cours = true
+	
 	# Passer les équipes éliminées (avaient des joueurs, n'en ont plus)
 	var tours_verifies := 0
 	while tours_verifies < pions.size():
@@ -603,6 +625,7 @@ func _afficher_tour() -> void:
 		tour_actuel = (tour_actuel + 1) % pions.size()
 		_sauvegarder_partie()
 		_basculer_camera()
+		tour_en_cours = false # RESET avant récursion
 		_afficher_tour()
 		_mettre_a_jour_hud()
 		return
@@ -618,6 +641,9 @@ func _afficher_tour() -> void:
 		chrono_actif = true
 		temp_label_chrono.text = "10"
 		temp_label_chrono.visible = true
+
+	# On libère le verrou car on est maintenant en attente d'input (ou le bot a fini)
+	tour_en_cours = false
 
 
 func _reprendre_tour() -> void:
