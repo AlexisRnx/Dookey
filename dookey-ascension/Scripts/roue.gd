@@ -23,28 +23,20 @@ var total_votes := 0
 var donnees_portions := []
 var en_rotation := false
 
-# Palette de couleurs pour différencier les portions
 var couleurs = [Color.CRIMSON, Color.ROYAL_BLUE, Color.FOREST_GREEN, Color.GOLD, Color.DARK_ORCHID, Color.DARK_ORANGE]
 
 func _ready() -> void:
-	# Centre automatiquement le nœud au milieu de l'écran visible
 	position = get_viewport_rect().size / 2.0
 
-	# ── Repositionne la flèche indicatrice au-dessus de la roue ────────
-	# Le Sprite2D est enfant du nœud RACINE (pas de ce Node2D),
-	# donc il ne tourne pas avec la roue — parfait.
 	var fleche: Sprite2D = get_parent().get_node_or_null("Sprite2D")
 	if fleche:
-		# La roue a un rayon de 200px ; on place la flèche légèrement au-dessus
 		fleche.position = position + Vector2(0.0, -(200.0 + fleche.texture.get_height() * fleche.scale.y * 0.5 - 55.0))
-		# Sens corrigé : 0° = texture dans son sens naturel (pointe vers le bas)
 		fleche.rotation_degrees = 0.0
 
 	_calculer_portions()
 	queue_redraw()
 
 
-# Étape 1 : Calculer la taille de chaque portion selon les votes
 func _calculer_portions() -> void:
 	total_votes = 0
 	for v in votes_manuels.values():
@@ -73,7 +65,6 @@ func _calculer_portions() -> void:
 			angle_courant += angle_portion
 			index_couleur += 1
 
-# Étape 2 : Dessiner la roue visuellement
 func _draw() -> void:
 	if total_votes == 0:
 		return
@@ -84,11 +75,9 @@ func _draw() -> void:
 	var taille_chiffre = 32   # ← plus grand
 	var taille_votes   = 16
 
-	# ── PASSE 1 : Toutes les tranches en premier (sans transform) ──────────
 	for portion in donnees_portions:
 		_dessiner_part_camembert(centre, rayon, portion.angle_debut, portion.angle_fin, portion.couleur)
 
-	# ── PASSE 2 : Tous les textes par-dessus ──────────────────────────────
 	for portion in donnees_portions:
 		var angle_moyen: float = (portion.angle_debut + portion.angle_fin) / 2.0
 		var dir = Vector2(cos(angle_moyen), sin(angle_moyen))
@@ -128,7 +117,6 @@ func _dessiner_part_camembert(centre: Vector2, rayon: float, angle_debut: float,
 		
 	draw_polygon(points, PackedColorArray([couleur]))
 
-# Étape 3 : Logique de probabilité et animation
 func lancer_roue() -> void:
 	if en_rotation or total_votes == 0:
 		return

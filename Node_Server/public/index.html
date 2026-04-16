@@ -170,15 +170,12 @@
 
     <script>
         const bgm = document.getElementById('bgm');
-        bgm.volume = 0.15; // Baisse le volume à 15% pour qu'il soit discret en fond
+        bgm.volume = 0.15;
 
-        // Tentative agressive de lancer la musique automatiquement dès l'arrivée
         let playAttempt = bgm.play();
 
         if (playAttempt !== undefined) {
             playAttempt.catch(error => {
-                // Si le navigateur (Chrome/Edge) bloque la musique pour des raisons de sécurité,
-                // on attend un clic caché n'importe où sur la page.
                 document.body.addEventListener('click', () => {
                     bgm.play();
                 }, { once: true });

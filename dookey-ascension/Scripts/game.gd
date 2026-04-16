@@ -1,8 +1,6 @@
 extends Node
 
-# ═══════════════════════════════════════════════════════════════════════════
-# CONFIGURATION
-# ═══════════════════════════════════════════════════════════════════════════
+# config
 @onready var layer_cases: TileMapLayer = $Deco
 
 const DUREE_PAS   := 0.25
@@ -10,7 +8,7 @@ const OFFSET_PION := Vector2(0.0, -10.0)
 
 const ROUE_SCENE  := preload("res://Scenes/roue.tscn")
 
-# Dictionnaire des effets des cases spéciales : Vector2i(AtlasX, AtlasY) : déplacement
+# Effets cases spéciales
 const EFFETS_CASES: Dictionary = {
 	Vector2i(1, 0):  3,   # Cercle bleu : +3
 	Vector2i(2, 0):  4,   # Cercle rouge : +4
@@ -44,13 +42,9 @@ const MAJ_DIALOGUES : Array[String] = [
 ]
 const MAJ_AUDIO       := preload("res://Assets/Soundtrack/All Might vs Noumu (Brainless) Theme - My Hero Academia OST [Plus Ultra!].mp3")
 
-# Case Portail (Mini-Jeu)
-const PORTAIL_TILE    := Vector2i(2, 2)
+const PORTAIL_TILE    := Vector2i(2, 2)  # Case Combat Boss
 
-# ═══════════════════════════════════════════════════════════════════════════
-
-# DONNÉES INTERNES
-# ═══════════════════════════════════════════════════════════════════════════
+# variables / état
 var parcours       : Array[Vector2i]   = []
 var pions          : Array[Dictionary] = []   # { node, case, nom, camera }
 var tour_actuel    : int  = 0
@@ -86,10 +80,11 @@ var boss_timer_lbl: Label        = null
 var boss_layer     : CanvasLayer  = null
 var boss_audio_player : AudioStreamPlayer = null
 
-# Majestueux
-var maj_votes      := {}
-var maj_vote_actif := false
-var maj_audio_player : AudioStreamPlayer = null
+var maj_votes          := {}
+var maj_vote_actif     := false
+var maj_votes_phase    := 1  # 1 = choisir option, 2 = choisir cible
+var maj_pseudos_votes  : Array = []  # anti double-vote
+var maj_audio_player   : AudioStreamPlayer = null
 
 # Portail QTE
 var equipes_bloquees_portail : Array[int] = []
@@ -102,7 +97,7 @@ var nb_joueurs_debut    : Dictionary = {}  # {equipe_idx -> nb initial}
 var panel_equipes_hud   : PanelContainer = null
 var labels_equipes_hud  : Array = []
 
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _ready() -> void:
 	_creer_hud()
 	_construire_parcours()
@@ -141,16 +136,12 @@ func _ready() -> void:
 	WebSocketServer.verrouiller_salle()
 	_initialiser_compteurs_equipes()
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Construit les noms d'équipes (Utilise toujours les couleurs fixes maintenant)
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _construire_noms_equipes() -> void:
 	for i in range(4):
 		noms_equipes[i] = WebSocketServer.NOMS_EQUIPES[i]
 
-# ═══════════════════════════════════════════════════════════════════════════
-# HUD  (CanvasLayer avec label + conteneur pour la roue)
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _creer_hud() -> void:
 	hud_layer = CanvasLayer.new()
 	hud_layer.layer = 10
@@ -216,15 +207,11 @@ func _creer_hud() -> void:
 	var noeud_roue: Node2D = roue_instance.get_node("Node2D")
 	noeud_roue.resultat_roue.connect(_sur_resultat_roue)
 
-	# ── Connexion du serveur WebSocket → roue ─────────────────────────────
-	# WebSocketServer est un Autoload enregistré dans project.godot
 	WebSocketServer.votes_recus.connect(_sur_votes_recus)
 	WebSocketServer.lancer_roue_web.connect(_sur_lancer_roue_web)
 	WebSocketServer.portail_qte_recu.connect(_sur_portail_qte_recu)
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Affiche / cache la roue
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _montrer_roue() -> void:
 	roue_instance.visible = true
 
@@ -252,9 +239,7 @@ func _sur_lancer_roue_web() -> void:
 			var noeud_roue: Node2D = roue_instance.get_node("Node2D")
 			noeud_roue.lancer_roue_depuis_web()
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Gestion du chrono temps réel
-# ═══════════════════════════════════════════════════════════════════════════
+
 var dernier_secondes_sauvegardees := 10
 
 func _process(delta: float) -> void:
@@ -276,7 +261,10 @@ func _process(delta: float) -> void:
 		boss_chrono_temps -= delta
 		if boss_timer_lbl:
 			boss_timer_lbl.text = str(ceili(max(boss_chrono_temps, 0.0)))
-		_mettre_a_jour_pourcentages_boss()
+		if maj_vote_actif:
+			_mettre_a_jour_pourcentages_maj()
+		else:
+			_mettre_a_jour_pourcentages_boss()
 
 func _declencher_roue() -> void:
 	_montrer_roue()
@@ -291,9 +279,7 @@ func _declencher_roue() -> void:
 	noeud_roue.set_votes_depuis_web(vote_en_cours)
 	noeud_roue.lancer_roue_depuis_web()
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Construction du parcours (uniquement atlas 5,4 / 6,4 / 5,5 / 6,5)
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _construire_parcours() -> void:
 	const ATLAS_AUTORISES: Array[Vector2i] = [
 		Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0),
@@ -345,13 +331,7 @@ func _plus_proche(depuis: Vector2i, liste: Array) -> Vector2i:
 			meilleure = c
 	return meilleure
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Plus de saisie clavier — c'est la roue qui déclenche le déplacement
-# ═══════════════════════════════════════════════════════════════════════════
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Déplacement case par case avec animation
-# ═══════════════════════════════════════════════════════════════════════════
 func _avancer_pion(nb: int) -> void:
 	en_deplacement = true
 
@@ -361,47 +341,45 @@ func _avancer_pion(nb: int) -> void:
 	print("[%s] Résultat Roue : %+d" % [data["nom"], nb])
 	await _deplacer_pion_relatif(data, nb)
 
-	# 2. Vérification et application d'un éventuel effet de case spéciale
-	var coords_actuelles = parcours[data["case"]]
-	var atlas = layer_cases.get_cell_atlas_coords(coords_actuelles)
-	
-	if EFFETS_CASES.has(atlas):
-		var effet = EFFETS_CASES[atlas]
-		print("⚡ [%s] Tombe sur une case spéciale ! Effet : %+d" % [data["nom"], effet])
+	# 2. Effet de la case d'atterrissage initial
+	var coords_initiales = parcours[data["case"]]
+	var atlas_initial = layer_cases.get_cell_atlas_coords(coords_initiales)
+
+	if EFFETS_CASES.has(atlas_initial):
+		var effet = EFFETS_CASES[atlas_initial]
+		print("⚡ [%s] Case spéciale ! Effet : %+d" % [data["nom"], effet])
 		await get_tree().create_timer(0.4).timeout
 		await _deplacer_pion_relatif(data, effet, true)
 
+	# 3. Position FINALE (après le saut d'effet éventuel) — c'est ici qu'on évalue tout
+	var atlas_final = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
+
 	if data["case"] >= parcours.size() - 1:
-		print("🏁 [%s] Arrive à la ligne d'ARRIVÉE ! Épreuve finale (1 seul essai !)" % data["nom"])
+		print("🏁 [%s] Arrivée ! Combat final contre DOOKEY BOSS." % data["nom"])
+		await _sequence_portail(data)
+	elif atlas_final == BOSS_TILE:
+		await get_tree().create_timer(0.8).timeout
+		print("💀 [%s] Case DOOKEY BOSS !" % data["nom"])
+		await _sequence_dookey_boss(data)
+	elif atlas_final == MAJESTUEUX_TILE:
+		await get_tree().create_timer(0.8).timeout
+		print("👑 [%s] Case DOOKEY MAJESTUEUX !" % data["nom"])
+		await _sequence_dookey_majestueux(data)
+	elif atlas_final == PORTAIL_TILE:
+		await get_tree().create_timer(0.8).timeout
+		print("👾 [%s] Case COMBAT DOOKEY BOSS !" % data["nom"])
 		await _sequence_portail(data)
 	else:
-		# Pause respiratoire pour les cases normales
 		await get_tree().create_timer(0.8).timeout
 
-		# 3. Vérification UNIQUE du Boss ou Majestueux sur la position finale (après tous les effets)
-		var atlas_final_pos = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
-		if atlas_final_pos == BOSS_TILE:
-			print("💀 [%s] Tombe sur la case DOOKEY BOSS !" % data["nom"])
-			await _sequence_dookey_boss(data)
-		elif atlas_final_pos == MAJESTUEUX_TILE:
-			print("👑 [%s] Tombe sur la case DOOKEY MAJESTUEUX !" % data["nom"])
-			await _sequence_dookey_majestueux(data)
-		elif atlas_final_pos == PORTAIL_TILE:
-			print("🌀 [%s] Entre dans le PORTAIL VIOLET !" % data["nom"])
-			await _sequence_portail(data)
-
 	en_deplacement = false
-	
-	# 4. Vérifier si la tuile finale est une case "Rejoue" (vert)
-	var atlas_final = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
-	
+
+	# 4. Qui joue ensuite ? On relit atlas_final (inchangé depuis l'étape 3)
 	if atlas_final == Vector2i(0, 1):
-		print("🔄 [%s] Tombe sur la case Verte ! REJOUE SON TOUR !" % data["nom"])
-		# On ne change pas tour_actuel
+		print("🔄 [%s] Case Verte — rejoue !" % data["nom"])
 	else:
-		# Fin normale du tour, passe au joueur suivant
 		tour_actuel = (tour_actuel + 1) % pions.size()
-		
+
 	_sauvegarder_partie()
 	
 	_basculer_camera()
@@ -449,9 +427,7 @@ func _deplacer_pion_relatif(data: Dictionary, nb: int, en_un_saut: bool = false)
 
 		hud_label_steps.text = "" # Effacer à la fin du mouvement
 
-# ───────────────────────────────────────────────────────────────────────────
-# ANIMATIONS DE DÉPLACEMENT
-# ───────────────────────────────────────────────────────────────────────────
+# animations
 func _animer_saut_pion(index_pion: int, index_case: int) -> void:
 	var pion_node  : Node2D   = pions[index_pion]["node"]
 	var coord      : Vector2i = parcours[index_case]
@@ -482,9 +458,7 @@ func _animer_saut_pion(index_pion: int, index_case: int) -> void:
 	await tw.finished
 	pion_node.scale = base_scale # Sécurité pour être sûr qu'il redescend
 
-# ───────────────────────────────────────────────────────────────────────────
-# HOT RELOAD / SAUVEGARDE
-# ───────────────────────────────────────────────────────────────────────────
+# sauvegarde
 func _sauvegarder_partie() -> void:
 	if OS.has_feature("web"):
 		var cases = []
@@ -538,9 +512,7 @@ func _placer_pion(index_pion: int, index_case: int) -> void:
 	var pos_locale : Vector2  = layer_cases.map_to_local(coord)
 	pion_node.global_position = layer_cases.to_global(pos_locale) + OFFSET_PION
 
-# ═══════════════════════════════════════════════════════════════════════════
-# HUD – label cases restantes
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _mettre_a_jour_hud() -> void:
 	var data          : Dictionary = pions[tour_actuel]
 	var case_actuelle : int  = data["case"]
@@ -548,9 +520,7 @@ func _mettre_a_jour_hud() -> void:
 	var mot           : String = "case" if restantes <= 1 else "cases"
 	hud_label.text = "%s — %d %s restante%s" % [data["nom"], restantes, mot, "s" if restantes > 1 else ""]
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Caméras
-# ═══════════════════════════════════════════════════════════════════════════
+# caméras
 func _obtenir_ou_creer_camera(pion_node: Node2D, actif: bool) -> Camera2D:
 	for child in pion_node.get_children():
 		if child is Camera2D:
@@ -569,23 +539,36 @@ func _basculer_camera() -> void:
 		cam.enabled = (i == tour_actuel)
 
 func _afficher_tour() -> void:
+	# Passer les équipes éliminées (avaient des joueurs, n'en ont plus)
+	var tours_verifies := 0
+	while tours_verifies < pions.size():
+		var nb_initial : int = nb_joueurs_debut.get(tour_actuel, 0)
+		if nb_initial == 0:
+			break  # c'est un bot, pas éliminable → joue normalement
+		var nb_actuel := 0
+		for pseudo in WebSocketServer.equipes:
+			if WebSocketServer.equipes[pseudo] == tour_actuel:
+				nb_actuel += 1
+		if nb_actuel > 0:
+			break  # encore des joueurs → joue normalement
+		# Équipe éliminée → skip silencieux
+		print("[Skip] %s éliminée, on passe." % pions[tour_actuel]["nom"])
+		tour_actuel = (tour_actuel + 1) % pions.size()
+		tours_verifies += 1
+
 	print("─── Tour de : %s — tourne la roue ! ───" % pions[tour_actuel]["nom"])
 	vote_en_cours.clear()
 	_cacher_roue()
-	# Envoyer NOUVEAU_TOUR immédiatement (les manettes en sont informées)
 	var msg = "NOUVEAU_TOUR:%d:%s" % [tour_actuel, pions[tour_actuel]["nom"]]
 	WebSocketServer.etat_courant = msg
 	WebSocketServer.envoyer_message(msg)
 	_mettre_a_jour_panel_equipes()
-	# Banderole d'abord, puis suite selon bot ou humain
 	await _animer_debut_tour(tour_actuel)
 
 	if tour_actuel in equipes_bloquees_portail:
 		print("[Portail] L'équipe est bloquée ! Déclenchement forcé du mini-jeu.")
 		await _sequence_portail(pions[tour_actuel])
 		
-		# Après l'épreuve forcée, le tour s'arrête quoi qu'il arrive
-		# (on ne lance pas la roue ce tour-ci)
 		tour_actuel = (tour_actuel + 1) % pions.size()
 		_sauvegarder_partie()
 		_basculer_camera()
@@ -596,16 +579,15 @@ func _afficher_tour() -> void:
 	var est_bot_tour : bool = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
 
 	if est_bot_tour:
-		# BOT : pas de timer, pas de roue — lancer automatique 1-6
 		var nb_bot := randi_range(1, 6)
 		print("[BOT %s] Lance automatiquement : %d" % [pions[tour_actuel]["nom"], nb_bot])
 		await _avancer_pion(nb_bot)
 	else:
-		# HUMAIN : démarrer le chrono normalement
 		temps_chrono = 10.0
 		chrono_actif = true
 		temp_label_chrono.text = "10"
 		temp_label_chrono.visible = true
+
 
 func _reprendre_tour() -> void:
 	print("─── Reprise à chaud du Tour de : %s ───" % pions[tour_actuel]["nom"])
@@ -617,9 +599,7 @@ func _reprendre_tour() -> void:
 	# Les manettes reconnectées verront "NOUVEAU_TOUR" et pourront revoter si elles reconnectent. 
 	WebSocketServer.envoyer_message(msg)
 
-# ═══════════════════════════════════════════════════════════════════════════
-# DOOKEY BOSS SÉQUENCE
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _sequence_dookey_boss(data: Dictionary) -> void:
 	# Arreter le chrono du tour en cours pour eviter tout conflit
 	chrono_actif = false
@@ -746,11 +726,7 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	if is_instance_valid(map_boss_fin):
 		map_boss_fin.visible = true
 
-# ═══════════════════════════════════════════════════════════════════════════
-# PORTAIL VIOLET SÉQUENCE
-# ═══════════════════════════════════════════════════════════════════════════
-# PORTAIL VIOLET SÉQUENCE
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _sequence_portail(data: Dictionary) -> bool:
 	# Arrêter les chronos
 	chrono_actif = false
@@ -761,7 +737,7 @@ func _sequence_portail(data: Dictionary) -> bool:
 	WebSocketServer.envoyer_message("PORTAIL_QTE_START")
 	
 	# Afficher un petit chrono ou message
-	hud_label.text = "ÉPREUVE DU PORTAIL EN COURS..."
+	hud_label.text = "COMBAT CONTRE DOOKEY BOSS EN COURS..."
 	
 	var est_bot = (nb_joueurs_debut.get(tour_actuel, 0) == 0)
 
@@ -791,14 +767,14 @@ func _sequence_portail(data: Dictionary) -> bool:
 			a_gagne = (float(portail_votes["success"]) / float(total_votes)) >= 0.5
 		
 	if a_gagne:
-		await _afficher_banderole_portail("GAGNÉ !")
+		await _afficher_banderole_portail("VICTOIRE ! Dookey Boss vaincu !")
 		if tour_actuel in equipes_bloquees_portail:
 			equipes_bloquees_portail.erase(tour_actuel)
 		
 		# Victoire immédiate si le mini-jeu est réussi !
 		await _sequence_victoire(pions[tour_actuel]["nom"])
 	else:
-		await _afficher_banderole_portail("ÉCHEC !")
+		await _afficher_banderole_portail("DOOKEY BOSS GAGNE...")
 		if not tour_actuel in equipes_bloquees_portail:
 			equipes_bloquees_portail.append(tour_actuel)
 	
@@ -906,9 +882,7 @@ func _afficher_banderole_portail(texte: String) -> void:
 	await get_tree().create_timer(2.0).timeout
 	layer.queue_free()
 
-# ═══════════════════════════════════════════════════════════════════════════
-# DOOKEY MAJESTUEUX SÉQUENCE
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _sequence_dookey_majestueux(data: Dictionary) -> void:
 	chrono_actif = false
 	temp_label_chrono.visible = false
@@ -967,10 +941,12 @@ func _sequence_dookey_majestueux(data: Dictionary) -> void:
 	boss_card_1.visible = true
 	boss_timer_lbl.visible = true
 	
-	# PHASE 1 : Vote
+	# Phase 1 : init des votes AVANT les awaits pour ne rater aucun vote
+	maj_votes = {0: 0, 1: 0}
+	maj_pseudos_votes.clear()
+	maj_votes_phase = 1
 	boss_chrono_actif = true
 	boss_chrono_temps = 10.0
-	maj_votes = {0: 0, 1: 0}
 	
 	if est_bot:
 		maj_votes[0] = 1
@@ -1024,10 +1000,13 @@ func _sequence_dookey_majestueux(data: Dictionary) -> void:
 			dial_panel.get_child(0).text = "Regardez vos manettes pour choisir l'équipe cible !"
 			dial_panel.visible = true
 			
+		# Phase 2 : init des votes AVANT les awaits
 		maj_votes.clear()
 		for c in cibles:
 			maj_votes[c] = 0
-			
+		maj_pseudos_votes.clear()
+		maj_votes_phase = 2
+		
 		boss_timer_lbl.visible = true
 		boss_chrono_actif = true
 		boss_chrono_temps = 10.0
@@ -1091,10 +1070,12 @@ func _sortie_majestueux() -> void:
 func _sur_majestueux_vote(option: int, pseudo: String) -> void:
 	if not maj_vote_actif: return
 	if WebSocketServer.equipes.get(pseudo, -1) != tour_actuel: return
+	if pseudo in maj_pseudos_votes: return  # anti double-vote
 	
 	if maj_votes.has(option):
 		maj_votes[option] += 1
-		print("[Majestueux] +1 vote pour option %d" % option)
+		maj_pseudos_votes.append(pseudo)
+		print("[Majestueux] +1 vote pour option %d par %s" % [option, pseudo])
 
 
 func _creer_boss_ui() -> void:
@@ -1264,6 +1245,21 @@ func _mettre_a_jour_pourcentages_boss() -> void:
 		boss_pct_0.text = str(roundi(boss_votes[0] * 100.0 / total)) + "%"
 		boss_pct_1.text = str(roundi(boss_votes[1] * 100.0 / total)) + "%"
 
+func _mettre_a_jour_pourcentages_maj() -> void:
+	if not boss_pct_0 or not boss_pct_1:
+		return
+	var total : int = 0
+	for v in maj_votes.values():
+		total += v
+	if maj_votes_phase == 1:
+		# Phase 1 : deux cartes fixes (option 0 et 1)
+		if total == 0:
+			boss_pct_0.text = "0%"
+			boss_pct_1.text = "0%"
+		else:
+			boss_pct_0.text = str(roundi(maj_votes.get(0, 0) * 100.0 / total)) + "%"
+			boss_pct_1.text = str(roundi(maj_votes.get(1, 0) * 100.0 / total)) + "%"
+
 func _illuminer_carte_boss(gagnant: int) -> void:
 	var carte_win : PanelContainer = boss_card_0 if gagnant == 0 else boss_card_1
 	var carte_lose: PanelContainer = boss_card_1 if gagnant == 0 else boss_card_0
@@ -1351,14 +1347,36 @@ func _eliminer_10_pourcent(equipe_idx: int) -> void:
 	
 	# Synchroniser la liste globale des équipes avec le serveur Node
 	WebSocketServer.notifier_mises_a_jour_equipes()
-	_mettre_a_jour_panel_equipes()  # Mettre à jour le compteur d'équipe
-	
+	_mettre_a_jour_panel_equipes()
+
 	var msg_elim = "BOSS_ELIMINES:" + str(nb_elimines)
 	WebSocketServer.envoyer_message(msg_elim)
 
-# ───────────────────────────────────────────────────────────────────────────
-# EFFETS VISUELS
-# ───────────────────────────────────────────────────────────────────────────
+	# Vérifier s'il ne reste qu'une seule équipe humaine avec des joueurs
+	# (uniquement si la partie ne contient aucun bot — avec des bots la partie continue jusqu'à la fin)
+	var has_bots := false
+	for i in range(pions.size()):
+		if nb_joueurs_debut.get(i, 0) == 0:
+			has_bots = true
+			break
+
+	if not has_bots:
+		var equipes_vivantes : Array[int] = []
+		for i in range(pions.size()):
+			var nb := 0
+			for p in WebSocketServer.equipes:
+				if WebSocketServer.equipes[p] == i:
+					nb += 1
+			if nb > 0:
+				equipes_vivantes.append(i)
+
+		if equipes_vivantes.size() == 1:
+			var idx_gagnant = equipes_vivantes[0]
+			print("[Elimination] Dernière équipe en vie : %s — VICTOIRE !" % pions[idx_gagnant]["nom"])
+			await _sequence_victoire(pions[idx_gagnant]["nom"])
+
+
+# visuel
 func _secouer_camera(intensite: float, duree: float) -> void:
 	var cam : Camera2D = pions[tour_actuel]["camera"]
 	var pos_origine = cam.offset
@@ -1446,9 +1464,7 @@ func _sur_boss_vote(option: int, pseudo: String) -> void:
 			print("[Boss] Vote REJETÉ de %s (Équipe %d) - Seule l'équipe %d peut voter !" % [pseudo, team_idx, tour_actuel])
 	else:
 		print("[Boss] Vote REJETÉ de %s - Équipe inconnue." % pseudo)
-# ═══════════════════════════════════════════════════════════════════════════
-# PANNEAU ÉQUIPES (TOP-RIGHT HUD)
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _initialiser_compteurs_equipes() -> void:
 	nb_joueurs_debut = {0: 0, 1: 0, 2: 0, 3: 0}
 	for pseudo in WebSocketServer.equipes:
@@ -1508,9 +1524,7 @@ func _mettre_a_jour_panel_equipes() -> void:
 			lbl.add_theme_color_override("font_color", Color.WHITE)
 			lbl.text = "  %s  %s" % [nom_equipe, compteur]
 
-# ═══════════════════════════════════════════════════════════════════════════
-# ANIMATION DÉBUT DE TOUR (bande colorée avec les pseudos)
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _animer_debut_tour(equipe_idx: int) -> void:
 	var sw := get_viewport().get_visible_rect().size.x
 	var sh := get_viewport().get_visible_rect().size.y
@@ -1594,9 +1608,7 @@ func _animer_debut_tour(equipe_idx: int) -> void:
 
 	anim_layer.queue_free()
 
-# ═══════════════════════════════════════════════════════════════════════════
-# EXPLOSION DU PION (quand toute l’équipe est éliminée)
-# ═══════════════════════════════════════════════════════════════════════════
+
 func _exploser_pion(equipe_idx: int) -> void:
 	var pion_node : Node2D = pions[equipe_idx]["node"]
 	if not is_instance_valid(pion_node):

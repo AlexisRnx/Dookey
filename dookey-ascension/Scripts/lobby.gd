@@ -13,7 +13,6 @@ var page2_vbox: VBoxContainer
 var equipes_grid: GridContainer
 
 func _ready() -> void:
-	# Fond de couleur unie (Ciel Bleu)
 	var bg = ColorRect.new()
 	bg.color = Color(0.55, 0.82, 0.95)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -203,7 +202,6 @@ func _ready() -> void:
 	btn_container.add_child(margin_btn)
 	page1_vbox.add_child(btn_container)
 	
-	# -------------- PAGE 2 (STYLE TABLEAU EQUIPES) --------------
 	var titre2 = Label.new()
 	titre2.text = "COMPOSITION DES ÉQUIPES"
 	titre2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -241,14 +239,10 @@ func _ready() -> void:
 	var ct_start = CenterContainer.new()
 	ct_start.add_child(btn_start)
 	page2_vbox.add_child(ct_start)
-	# -------------------------------------------------------------
-	
-	# Initialiser HTTPRequest pour télécharger le QR Code
 	http_request = HTTPRequest.new()
 	add_child(http_request)
 	http_request.request_completed.connect(_sur_qr_telecharge)
 
-	# Écoute des signaux du Websocket principal
 	WebSocketServer.code_salle_recu.connect(_sur_code_salle_recu)
 	WebSocketServer.joueur_rejoint.connect(_sur_joueur_rejoint)
 	WebSocketServer.joueur_quitte.connect(_sur_joueur_quitte)
@@ -257,7 +251,6 @@ func _ready() -> void:
 	if WebSocketServer.code_salle_actuel != "":
 		_sur_code_salle_recu(WebSocketServer.code_salle_actuel)
 		
-	# HOT-START : Si on trouve une sauvegarde du plateau, on zappe le lobby !
 	if OS.has_feature("web"):
 		var save_str = JavaScriptBridge.eval("window.sessionStorage.getItem('dookeyGameState');")
 		if save_str and save_str != "":
@@ -265,11 +258,8 @@ func _ready() -> void:
 			call_deferred("_lancer_restauration")
 
 func _afficher_page2() -> void:
-	# 1. Génère la répartition instantanément
 	WebSocketServer.assigner_equipes(liste_joueurs)
 	
-	# 2. Envoyer immédiatement les équipes au serveur
-	# → il enverra VOTRE_EQUIPE à chaque téléphone pour afficher la banderole
 	var parts = []
 	for pseudo in WebSocketServer.equipes:
 		parts.append("%s=%d" % [pseudo.uri_encode(), WebSocketServer.equipes[pseudo]])
@@ -280,7 +270,6 @@ func _afficher_page2() -> void:
 	for child in equipes_grid.get_children():
 		child.queue_free()
 		
-	# 3. Construire les colonnes
 	for i in range(4):
 		var vb = VBoxContainer.new()
 		vb.add_theme_constant_override("separation", 10)
@@ -300,7 +289,6 @@ func _afficher_page2() -> void:
 		var sep = HSeparator.new()
 		vb.add_child(sep)
 		
-		var cb_joueurs = 0
 		for pseudo in WebSocketServer.equipes:
 			if WebSocketServer.equipes[pseudo] == i:
 				var lbl = Label.new()

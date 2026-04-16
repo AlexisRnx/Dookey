@@ -1,12 +1,5 @@
 extends Node
 
-## WebSocket server qui écoute les messages du site Web Controller
-## Port : 8080
-## Messages attendus :
-##   "VOTES:1=3,2=5,4=2"  → remplace les votes dans la roue
-##   "CLIC:5"             → remplace les votes par ce seul chiffre puis lance la roue
-##   "LANCER"             → lance la roue
-
 signal votes_recus(votes: Dictionary)
 signal lancer_roue_web()
 signal joueur_rejoint(pseudo: String)
@@ -17,52 +10,44 @@ signal majestueux_vote_recu(option: int, pseudo: String)
 signal portail_qte_recu(succes: bool, pseudo: String)
 var _ws := WebSocketPeer.new()
 var est_connecte := false
-# On pointe par défaut sur le serveur Render pour faciliter les tests depuis l'éditeur
 var URL := "wss://dookey-h1if.onrender.com/?clientType=game"
 var etat_courant : String = "LOBBY_ATTENTE"
 var code_salle_actuel : String = ""
 
-# Équipes : Dict { pseudo: String -> index_equipe: int (0-3) }
 var equipes : Dictionary = {}
 
-# Couleurs des 4 équipes (correspond aux sprite_0..3)
 const COULEURS_EQUIPES = [
-	Color(0.72, 0.0, 0.0),   # Rouge  - sprite_0
-	Color(0.25, 0.31, 0.56), # Bleu   - sprite_1
-	Color(0.82, 0.93, 0.26), # Lime   - sprite_2
-	Color(0.07, 0.76, 0.22), # Vert   - sprite_3
+	Color(0.72, 0.0, 0.0),
+	Color(0.25, 0.31, 0.56),
+	Color(0.82, 0.93, 0.26),
+	Color(0.07, 0.76, 0.22),
 ]
 const NOMS_EQUIPES = ["Équipe Rouge", "Équipe Bleue", "Équipe Lime", "Équipe Verte"]
 
-# Distribue les joueurs en 4 équipes équilibrées de façon aléatoire
 func assigner_equipes(joueurs: Array) -> void:
 	equipes.clear()
 	if joueurs.is_empty():
 		return
 	
 	var liste = joueurs.duplicate()
-	liste.shuffle()  # Mélange l'ordre des joueurs
+	liste.shuffle()
 	
 	var nb = liste.size()
-	var base = nb / 4  # Minimum par équipe
-	var reste = nb % 4  # Joueurs en trop
+	var base = nb / 4
+	var reste = nb % 4
 	
-	# Créer les slots : base fois chaque équipe
 	var slots : Array[int] = []
 	for equipe_idx in range(4):
 		for _j in range(base):
 			slots.append(equipe_idx)
 	
-	# Ajouter les restes sur des équipes tirées au hasard (sans doublon)
 	var equipes_pour_reste = [0, 1, 2, 3]
 	equipes_pour_reste.shuffle()
 	for i in range(reste):
 		slots.append(equipes_pour_reste[i])
 	
-	# Mélanger les slots → aucune équipe n'est favorisée
 	slots.shuffle()
 	
-	# Assigner chaque joueur à son slot
 	for i in range(liste.size()):
 		equipes[liste[i]] = slots[i]
 
@@ -131,7 +116,6 @@ func _traiter_message(message: String) -> void:
 		var pseudo = message.substr(12).strip_edges()
 		joueur_quitte.emit(pseudo)
 
-	# ── Format VOTES:1=3,2=5,6=1 ──────────────────────────────────────────
 	elif message.begins_with("VOTES:"):
 		var partie := message.substr(6)  # Tout après "VOTES:"
 		var votes  := {}
@@ -145,7 +129,6 @@ func _traiter_message(message: String) -> void:
 		if votes.size() > 0:
 			votes_recus.emit(votes)
 
-	# ── Format CLIC:3 (le joueur a cliqué sur son chiffre obtenu) ──────────
 	elif message.begins_with("CLIC:"):
 		var chiffre := message.substr(5).strip_edges().to_int()
 		if chiffre >= 1 and chiffre <= 6:
@@ -154,11 +137,9 @@ func _traiter_message(message: String) -> void:
 			votes_recus.emit(votes)
 			lancer_roue_web.emit()
 
-	# ── Format LANCER (déclenche juste la roue) ───────────────────────────
 	elif message == "LANCER":
 		lancer_roue_web.emit()
 	
-	# ── Format BOSS_VOTE:0:pseudo ────────────────────
 	elif message.begins_with("BOSS_VOTE:"):
 		var parts := message.split(":")
 		if parts.size() >= 3:
@@ -166,7 +147,6 @@ func _traiter_message(message: String) -> void:
 			var pseudo := parts[2]
 			boss_vote_recu.emit(option, pseudo)
 
-	# ── Format MAJESTUEUX_VOTE:0:pseudo ──────────────
 	elif message.begins_with("MAJESTUEUX_VOTE:"):
 		var parts := message.split(":")
 		if parts.size() >= 3:
@@ -174,7 +154,6 @@ func _traiter_message(message: String) -> void:
 			var pseudo := parts[2]
 			majestueux_vote_recu.emit(option, pseudo)
 
-	# ── Format PORTAIL_QTE_VOTE:1:pseudo ─────────────
 	elif message.begins_with("PORTAIL_QTE_VOTE:"):
 		var parts := message.split(":")
 		if parts.size() >= 3:

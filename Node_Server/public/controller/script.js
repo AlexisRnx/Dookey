@@ -1,10 +1,8 @@
-// Logique de Connexion Lobby
 const inputCode = document.getElementById('input-code');
 const inputPseudo = document.getElementById('input-pseudo');
 const btnJoin = document.getElementById('btn-join');
 const errorLabel = document.getElementById('login-error');
 
-// Remplissage auto si URL = ?code=XYZ
 function attemptFillCode() {
     let cp = null;
     try {
@@ -48,7 +46,6 @@ let socket;
 let isGameScreenActive = false;
 let animFrameId = null;
 
-// Variables pour l'interface de jeu Controller
 let aVoteCeTour = false;
 let tourActuel = -1;
 let myTeamIndex = -1; // Index de mon équipe (0-3)
@@ -134,12 +131,10 @@ function initWebSocket(code, pseudo) {
     socket.onmessage = (event) => {
         let data = event.data;
 
-        // Phase 1 : Login en cours
         if (!isGameScreenActive) {
             if (data === "JOIN_SUCCESS") {
                 isGameScreenActive = true;
                 
-                // Mémoriser la session
                 sessionStorage.setItem('dookeyRoomCode', code);
                 sessionStorage.setItem('dookeyPseudo', pseudo);
                 
@@ -151,7 +146,7 @@ function initWebSocket(code, pseudo) {
                 melangerChiffres();
                 lastTimeMain = performance.now();
                 animer(lastTimeMain);
-                evaluerVerrouillageBase(); // Bloque tout jusqu'au NOUVEAU_TOUR
+                evaluerVerrouillageBase(); 
             } else if (data === "ERROR:ROOM_NOT_FOUND") {
                 sessionStorage.removeItem('dookeyRoomCode');
                 sessionStorage.removeItem('dookeyPseudo');
@@ -174,9 +169,7 @@ function initWebSocket(code, pseudo) {
             return;
         }
 
-        // Phase 2 : En Jeu
         if (data === 'BOSS_EVENT') {
-            // Seuls ceux qui sont dans l'équipe active voient le vote
             if (myTeamIndex === tourActuel) {
                 bossAVote = false;
                 document.getElementById('boss-card-0').className = 'boss-card';
@@ -195,19 +188,21 @@ function initWebSocket(code, pseudo) {
             document.getElementById('boss-vote-status').innerText = gagnant === 0 ? 'Recul de 10 cases...' : "10% de l'\u00e9quipe \u00e9limin\u00e9e...";
 
         } else if (data === 'BOSS_END') {
-            // Cacher l'écran boss, rétablir la barre
             document.getElementById('boss-vote-screen').style.display = 'none';
             document.getElementById('ecran-cliquable').style.display = '';
             
-        // ----- PORTAIL QTE -----
         } else if (data === 'PORTAIL_QTE_START') {
+            // Verrouiller la barre principale immédiatement pour tout le monde
+            estVerrouille = true;
+            estArrete = true;
+            document.getElementById('ecran-cliquable').style.opacity = '0.3';
             if (myTeamIndex === tourActuel) {
                 lancerPortailQTE();
             }
         } else if (data === 'PORTAIL_QTE_END') {
             stopPortailQTE();
+
             
-        // ----- DOOKEY MAJESTUEUX -----
         } else if (data === 'MAJESTUEUX_EVENT_1') {
             if (myTeamIndex === tourActuel) {
                 majestueuxAVote = false;
@@ -232,9 +227,8 @@ function initWebSocket(code, pseudo) {
                 majestueuxAVote = false;
                 document.getElementById('maj-title').innerText = '🎯 CHOISISSEZ LA CIBLE 🎯';
                 const container = document.getElementById('maj-cards-container');
-                container.innerHTML = ''; // Clear previous
+                container.innerHTML = ''; 
                 
-                // Format: MAJESTUEUX_EVENT_2:0=Equipe Rouge|2=Equipe Verte
                 const parts = data.split(':');
                 if (parts.length > 1) {
                     const teams = parts[1].split('|');
@@ -264,7 +258,6 @@ function initWebSocket(code, pseudo) {
             document.getElementById('majestueux-vote-screen').style.display = 'none';
             document.getElementById('ecran-cliquable').style.display = '';
 
-        // ----- ELIMINATIONS -----
         } else if (data.startsWith('ELIMINE:')) {
             const victim = data.split(':')[1];
             const myPseudo = sessionStorage.getItem('dookeyPseudo');
@@ -279,11 +272,9 @@ function initWebSocket(code, pseudo) {
             nomEquipeTour = parts[2];
             aVoteCeTour = false;
             document.getElementById('ws-label').innerText = "Tour en cours";
-            // Cacher la bannière équipe quand la partie démarre
             document.getElementById('team-banner').style.display = 'none';
-            // L'activation sera gérée par MON_TOUR / PAS_MON_TOUR
         } else if (data === 'MON_TOUR') {
-            if (qteActive) return; // Ne pas perturber le mini-jeu
+            if (qteActive) return; 
             estVerrouille = false;
             estArrete = false;
             aVoteCeTour = false;
@@ -295,7 +286,7 @@ function initWebSocket(code, pseudo) {
             lastTimeMain = performance.now();
             animer(lastTimeMain);
         } else if (data === 'PAS_MON_TOUR') {
-            if (qteActive) return; // Ne pas perturber le mini-jeu
+            if (qteActive) return; 
             estVerrouille = true;
             estArrete = true;
             document.getElementById("ecran-cliquable").style.opacity = "0.3";
@@ -316,19 +307,40 @@ function initWebSocket(code, pseudo) {
             const idx = parseInt(data.split(":")[1]);
             myTeamIndex = idx;
             afficherBadgeEquipe(idx);
-            // Afficher la bannière colorée pleine largeur
             const banner = document.getElementById('team-banner');
             banner.style.background = EQUIPES_COULEURS[idx] || '#555';
             banner.innerText = EQUIPES_NOMS[idx] || ('Equipe ' + (idx + 1));
             banner.style.display = 'block';
         } else if (data.startsWith("GAME_WIN:")) {
             const winName = data.split(":")[1];
+
+            // Verrouiller tout le jeu
+            estVerrouille = true;
+            estArrete = true;
+
+            // Nettoyer la session pour ne pas revenir à la même partie
+            try {
+                sessionStorage.removeItem('dookeyRoomCode');
+                sessionStorage.removeItem('dookeyPseudo');
+                sessionStorage.removeItem('dookeyGameState');
+            } catch(e) {}
+
+            // Afficher l'écran de victoire
             document.getElementById('victoire-screen').style.display = 'flex';
-            document.getElementById('gagnant-nom').innerText = winName;
-            // Retour au menu (reload) après 10s
-            setTimeout(() => {
-                location.reload();
-            }, 10000);
+            document.getElementById('gagnant-nom').innerText = winName || 'Équipe gagnante';
+
+            // Compte à rebours visible
+            let vicSecondes = 10;
+            const vicTimer = document.getElementById('vic-countdown');
+            if (vicTimer) vicTimer.innerText = vicSecondes;
+            const vicInterval = setInterval(() => {
+                vicSecondes--;
+                if (vicTimer) vicTimer.innerText = vicSecondes;
+                if (vicSecondes <= 0) {
+                    clearInterval(vicInterval);
+                    location.reload();
+                }
+            }, 1000);
         }
     };
 }
@@ -416,7 +428,6 @@ document.getElementById('ecran-cliquable').onclick = () => {
     }
 };
 
-// ── Vote Boss ────────────────────────────────────────────────────────────────
 function voterBoss(option) {
     if (bossAVote) return;
     const myPseudo = sessionStorage.getItem('dookeyPseudo');
@@ -444,13 +455,12 @@ function voterMajestueux(option) {
     document.getElementById('maj-vote-status').innerText = "Attente des résultats...";
 }
 
-// ── Portail QTE ──────────────────────────────────────────────────────────────
 function lancerPortailQTE() {
     qteActive = true;
     portailAClike = false;
     qtePosition = Math.random() * 100;
     document.getElementById('portail-screen').style.display = 'flex';
-    document.getElementById('portail-status').innerText = "À VOUS !";
+    document.getElementById('portail-status').innerText = "COMBATTEZ !";
     document.getElementById('portail-status').style.color = "white";
     document.getElementById('portail-flash').style.opacity = "0";
     document.getElementById('ecran-cliquable').style.display = 'none';
@@ -514,13 +524,13 @@ document.getElementById('portail-screen').onclick = () => {
     const status = document.getElementById('portail-status');
     
     if (isSuccess) {
-        status.innerText = "RÉUSSI !";
-        status.style.color = "#2ecc71"; // Green
+        status.innerText = "VICTOIRE !";
+        status.style.color = "#2ecc71";
         flash.style.background = "rgba(46, 204, 113, 0.4)";
         socket.send("PORTAIL_QTE_VOTE:1");
     } else {
-        status.innerText = "ÉCHEC...";
-        status.style.color = "#e74c3c"; // Red
+        status.innerText = "DOOKEY BOSS GAGNE...";
+        status.style.color = "#e74c3c";
         flash.style.background = "rgba(231, 76, 60, 0.4)";
         socket.send("PORTAIL_QTE_VOTE:0");
     }

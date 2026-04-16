@@ -9,7 +9,6 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: 'Outfit', sans-serif; color: white;}
         
-        /* LOGIN SCREEN */
         #login-screen {
             display: flex;
             flex-direction: column;
@@ -64,7 +63,6 @@
         }
         .btn-join:active { transform: scale(0.95); }
 
-        /* GAME SCREEN (OLD CONTROLLER) */
         #game-screen { display: none; height: 100vh; overflow: hidden; }
         #ws-status-bar {
             position: absolute; top: 10px; left: 10px;
@@ -74,7 +72,6 @@
         }
         #ws-status { width: 10px; height: 10px; background: red; border-radius: 50%; display: inline-block; margin-right: 8px; }
 
-        /* BADGE ÉQUIPE (haut droite) */
         #badge-equipe {
             position: absolute; top: 10px; right: 10px;
             padding: 6px 14px;
@@ -87,7 +84,6 @@
             border: 2px solid rgba(255,255,255,0.4);
             box-shadow: 0 2px 10px rgba(0,0,0,0.4);
         }
-		/* BANNIÈRE ÉQUIPE (pleine largeur, centrée verticalement) */
 		#team-banner {
 			display: none;
 			position: fixed;
@@ -107,7 +103,6 @@
 			box-shadow: 0 6px 30px rgba(0,0,0,0.4);
 			z-index: 100;
 		}
-		/* BOSS VOTE SCREEN */
 		#boss-vote-screen {
 			display: none;
 			position: fixed;
@@ -148,7 +143,6 @@
 		.boss-card.loser  { opacity: 0.4; }
 		#boss-vote-status { font-size: 0.9rem; color: #888; margin: 0; }
 
-		/* MAJESTUEUX VOTE SCREEN */
 		#majestueux-vote-screen {
 			display: none;
 			position: fixed;
@@ -200,7 +194,6 @@
 		.maj-card.loser  { opacity: 0.4; }
 		#maj-vote-status { font-size: 0.9rem; color: #888; margin: 0; }
 
-		/* ELIMINATED SCREEN */
 		#eliminated-screen {
 			display: none;
 			position: fixed;
@@ -234,7 +227,6 @@
 		}
 
 
-		/* PORTAIL QTE SCREEN */
 		#portail-screen {
 			display: none;
 			position: fixed;
@@ -307,46 +299,74 @@
 			margin: 10px 0;
 			text-shadow: 0 0 15px #ba55d3;
 		}
-		/* Victoire */
 		#victoire-screen {
 			position: fixed;
 			top: 0; left: 0;
 			width: 100%; height: 100%;
-			background: radial-gradient(circle, #ffd700, #b8860b);
+			box-sizing: border-box;
+			background: radial-gradient(135deg, #f9a825 0%, #e65100 60%, #b71c1c 100%);
 			display: none;
 			flex-direction: column;
 			justify-content: center;
 			align-items: center;
 			z-index: 2000;
 			text-align: center;
-			padding: 20px;
+			padding: 30px 20px;
+			gap: 16px;
+			overflow: hidden;
+		}
+		#victoire-screen .vic-trophy {
+			font-size: 5rem;
+			animation: trophyPop 0.6s ease-out;
 		}
 		#victoire-screen h1 {
-			font-size: 3.5rem;
+			font-size: clamp(2rem, 8vw, 3.2rem);
 			color: #fff;
-			margin-bottom: 20px;
-			text-shadow: 0 0 20px rgba(0,0,0,0.5);
-			animation: bounce 1s infinite alternate;
+			margin: 0;
+			text-shadow: 0 3px 15px rgba(0,0,0,0.5);
+			letter-spacing: 2px;
+			animation: bounce 0.8s infinite alternate;
 		}
 		#victoire-screen #gagnant-nom {
-			font-size: 2.2rem;
+			font-size: clamp(1.4rem, 6vw, 2rem);
+			color: #fff;
+			font-weight: 900;
+			background: rgba(0,0,0,0.35);
+			padding: 12px 28px;
+			border-radius: 50px;
+			border: 2px solid rgba(255,255,255,0.4);
+			width: 100%;
+			max-width: 340px;
+			box-sizing: border-box;
+			word-break: break-word;
+		}
+		#victoire-screen .vic-msg {
+			font-size: 1rem;
+			color: rgba(255,255,255,0.85);
+			margin: 0;
+		}
+		#victoire-screen #vic-countdown {
+			font-size: 1.5rem;
 			color: #fff;
 			font-weight: 800;
 			background: rgba(0,0,0,0.3);
-			padding: 15px 30px;
-			border-radius: 50px;
-			margin-bottom: 20px;
+			border-radius: 30px;
+			padding: 6px 24px;
 		}
 		@keyframes bounce {
-			from { transform: translateY(0); }
-			to { transform: translateY(-20px); }
+			from { transform: translateY(0) scale(1); }
+			to   { transform: translateY(-14px) scale(1.04); }
+		}
+		@keyframes trophyPop {
+			0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+			70%  { transform: scale(1.2) rotate(5deg); opacity: 1; }
+			100% { transform: scale(1) rotate(0deg); }
 		}
 
 	</style>
 </head>
 <body>
 
-    <!-- LOBBY LOGIN -->
     <div id="login-screen">
         <div class="login-box">
             <h1>Rejoindre</h1>
@@ -363,9 +383,7 @@
         </div>
     </div>
 
-    <!-- MAIN GAME CONTROLLER -->
     <div id="game-screen">
-        <!-- Bannière équipe pleine largeur -->
         <div id="team-banner"></div>
         
         <div id="ws-status-bar">
@@ -373,7 +391,6 @@
             <span id="ws-label">En attente...</span>
         </div>
         
-        <!-- Badge équipe en haut à droite -->
         <div id="badge-equipe"></div>
         
         <div id="ecran-cliquable">
@@ -392,7 +409,6 @@
             <p id="txt-info">Regardez l'écran principal</p>
         </div>
 
-        <!-- BOSS VOTE OVERLAY -->
         <div id="boss-vote-screen">
             <h2>☠️ DOOKEY BOSS ! ☠️</h2>
             <div id="boss-card-0" class="boss-card" style="background:rgba(100,0,0,0.9); border-color: rgba(255,0,0,0.4);" onclick="voterBoss(0)">
@@ -406,7 +422,6 @@
             <p id="boss-vote-status">Touchez une option pour voter...</p>
         </div>
 
-        <!-- MAJESTUEUX VOTE OVERLAY -->
         <div id="majestueux-vote-screen">
             <h2 id="maj-title">👑 DOOKEY MAJESTUEUX 👑</h2>
             <div id="maj-cards-container" class="maj-cards-container">
@@ -415,19 +430,17 @@
             <p id="maj-vote-status">Touchez une option pour voter...</p>
         </div>
 
-		<!-- ELIMINATED OVERLAY -->
 		<div id="eliminated-screen">
 			<div class="skull-icon">☠️</div>
 			<h1>DOMMAGE !</h1>
 			<p>Dookey Boss vous a éliminé de l'équipe.<br>Vous ne pouvez plus participer aux votes.</p>
 		</div>
 
-		<!-- PORTAIL QTE OVERLAY -->
 		<div id="portail-screen">
 			<div id="portail-flash" class="portail-flash"></div>
-			<h2>ÉPREUVE DU PORTAIL</h2>
+			<h2>⚔️ COMBAT CONTRE DOOKEY BOSS ⚔️</h2>
 			<div id="portail-timer">8</div>
-			<p>Appuyez sur l'écran quand le curseur est dans la zone verte !</p>
+			<p>Arrêtez le curseur dans la zone verte pour vaincre Dookey Boss !</p>
 			<div id="qte-container" class="qte-container">
 				<div id="qte-safe-zone" class="qte-safe-zone"></div>
 				<div id="qte-cursor" class="qte-cursor"></div>
@@ -435,11 +448,12 @@
 			<p id="portail-status" style="margin-top: 25px; font-weight: bold; font-size: 1.2rem;"></p>
 		</div>
 
-		<!-- REDIRECTION VICTOIRE -->
 		<div id="victoire-screen">
-			<h1>🏆 VICTOIRE 🏆</h1>
+			<div class="vic-trophy">🏆</div>
+			<h1>VICTOIRE !</h1>
 			<div id="gagnant-nom">NOM DE L'EQUIPE</div>
-			<p style="color: white; font-size: 1.2rem;">Félicitations ! Retour au menu dans quelques instants...</p>
+			<p class="vic-msg">Félicitations — retour au menu dans</p>
+			<div id="vic-countdown">10</div>
 		</div>
     </div>
 
