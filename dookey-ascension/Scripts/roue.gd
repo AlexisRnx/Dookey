@@ -144,7 +144,7 @@ func lancer_roue() -> void:
 	# Calcul de l'angle pour s'aligner avec la flèche positionnée en haut (-PI/2)
 	var rotation_cible = -(angle_arret + PI / 2.0) + (tours_complets * TAU)
 	
-	# Animation fluide
+	# Animation fluide (accélérée)
 	var tween = create_tween()
 	tween.set_trans(Tween.TRANS_QUART)
 	tween.set_ease(Tween.EASE_OUT)

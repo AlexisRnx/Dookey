@@ -8,18 +8,18 @@ function attemptFillCode() {
     try {
         const urlP = new URLSearchParams(window.location.search);
         cp = urlP.get('code');
-    } catch(e) {}
-    
+    } catch (e) { }
+
     if (!cp && window.location.href.includes('code=')) {
         cp = window.location.href.split('code=')[1].split('&')[0];
     }
-    
+
     let savedCode = null;
     let savedPseudo = null;
     try {
         savedCode = sessionStorage.getItem('dookeyRoomCode');
         savedPseudo = sessionStorage.getItem('dookeyPseudo');
-    } catch(e) {
+    } catch (e) {
         console.warn("sessionStorage non disponible", e);
     }
 
@@ -28,11 +28,11 @@ function attemptFillCode() {
     } else if (savedCode) {
         inputCode.value = savedCode;
     }
-    
+
     if (savedPseudo) {
         inputPseudo.value = savedPseudo;
     }
-    
+
     return cp;
 }
 
@@ -64,13 +64,13 @@ let qteAnimId = null;
 let lastTimeMain = 0;
 let lastTimeQte = 0;
 let portailInterval = null;
-const VITESSE_UNIFORME = 90; // 90% de la largeur de la barre par seconde
+const VITESSE_UNIFORME = 180; // Vitesse triplée pour rendre les barres beaucoup plus rapides
 
 const curseur = document.getElementById('curseur');
 const cases = document.querySelectorAll('.case-score');
 
 const EQUIPES_COULEURS = ['#b80000', '#414e8e', '#d2ec42', '#12c337'];
-const EQUIPES_NOMS     = ['Équipe Rouge', 'Équipe Bleue', 'Équipe Lime', 'Équipe Verte'];
+const EQUIPES_NOMS = ['Équipe Rouge', 'Équipe Bleue', 'Équipe Lime', 'Équipe Verte'];
 
 function afficherBadgeEquipe(idx) {
     const badge = document.getElementById('badge-equipe');
@@ -82,13 +82,13 @@ function afficherBadgeEquipe(idx) {
 btnJoin.onclick = () => {
     const code = inputCode.value.trim().toUpperCase();
     const pseudo = inputPseudo.value.trim();
-    
+
     if (code.length === 0 || pseudo.length === 0) {
         errorLabel.innerText = "Veuillez remplir le code et le pseudo.";
         errorLabel.style.display = "block";
         return;
     }
-    
+
     btnJoin.innerText = "Connexion...";
     errorLabel.style.display = "none";
     initWebSocket(code, pseudo);
@@ -100,7 +100,7 @@ let globSavedPseudo = null;
 try {
     globSavedCode = sessionStorage.getItem('dookeyRoomCode');
     globSavedPseudo = sessionStorage.getItem('dookeyPseudo');
-} catch(e) {}
+} catch (e) { }
 
 if (globSavedCode && globSavedPseudo && !codeParam) {
     btnJoin.innerText = "Reconnexion...";
@@ -134,19 +134,19 @@ function initWebSocket(code, pseudo) {
         if (!isGameScreenActive) {
             if (data === "JOIN_SUCCESS") {
                 isGameScreenActive = true;
-                
+
                 sessionStorage.setItem('dookeyRoomCode', code);
                 sessionStorage.setItem('dookeyPseudo', pseudo);
-                
+
                 document.getElementById('login-screen').style.display = "none";
                 document.getElementById('game-screen').style.display = "block";
                 document.getElementById('ws-status').style.background = 'lime';
                 document.getElementById('ws-label').innerText = 'Connecté (Attente...)';
-                
+
                 melangerChiffres();
                 lastTimeMain = performance.now();
                 animer(lastTimeMain);
-                evaluerVerrouillageBase(); 
+                evaluerVerrouillageBase();
             } else if (data === "ERROR:ROOM_NOT_FOUND") {
                 sessionStorage.removeItem('dookeyRoomCode');
                 sessionStorage.removeItem('dookeyPseudo');
@@ -190,7 +190,7 @@ function initWebSocket(code, pseudo) {
         } else if (data === 'BOSS_END') {
             document.getElementById('boss-vote-screen').style.display = 'none';
             document.getElementById('ecran-cliquable').style.display = '';
-            
+
         } else if (data === 'PORTAIL_QTE_START') {
             // Verrouiller la barre principale immédiatement pour tout le monde
             estVerrouille = true;
@@ -202,7 +202,7 @@ function initWebSocket(code, pseudo) {
         } else if (data === 'PORTAIL_QTE_END') {
             stopPortailQTE();
 
-            
+
         } else if (data === 'MAJESTUEUX_EVENT_1') {
             if (myTeamIndex === tourActuel) {
                 majestueuxAVote = false;
@@ -227,8 +227,8 @@ function initWebSocket(code, pseudo) {
                 majestueuxAVote = false;
                 document.getElementById('maj-title').innerText = '🎯 CHOISISSEZ LA CIBLE 🎯';
                 const container = document.getElementById('maj-cards-container');
-                container.innerHTML = ''; 
-                
+                container.innerHTML = '';
+
                 const parts = data.split(':');
                 if (parts.length > 1) {
                     const teams = parts[1].split('|');
@@ -253,7 +253,7 @@ function initWebSocket(code, pseudo) {
                 else c.classList.add('loser');
             });
             document.getElementById('maj-vote-status').innerText = 'Choix verrouillé...';
-            
+
         } else if (data === 'MAJESTUEUX_END') {
             document.getElementById('majestueux-vote-screen').style.display = 'none';
             document.getElementById('ecran-cliquable').style.display = '';
@@ -274,7 +274,7 @@ function initWebSocket(code, pseudo) {
             document.getElementById('ws-label').innerText = "Tour en cours";
             document.getElementById('team-banner').style.display = 'none';
         } else if (data === 'MON_TOUR') {
-            if (qteActive) return; 
+            if (qteActive) return;
             estVerrouille = false;
             estArrete = false;
             aVoteCeTour = false;
@@ -286,7 +286,7 @@ function initWebSocket(code, pseudo) {
             lastTimeMain = performance.now();
             animer(lastTimeMain);
         } else if (data === 'PAS_MON_TOUR') {
-            if (qteActive) return; 
+            if (qteActive) return;
             estVerrouille = true;
             estArrete = true;
             document.getElementById("ecran-cliquable").style.opacity = "0.3";
@@ -299,10 +299,10 @@ function initWebSocket(code, pseudo) {
             document.getElementById("txt-info").innerText = "TEMPS ÉCOULÉ - CHOIX ALÉATOIRE DANS LE JEU...";
             estArrete = true;
         } else if (data === "LOBBY_ATTENTE") {
-             aVoteCeTour = false;
-             tourActuel = -1;
-             nomEquipeTour = "";
-             evaluerVerrouillageBase();
+            aVoteCeTour = false;
+            tourActuel = -1;
+            nomEquipeTour = "";
+            evaluerVerrouillageBase();
         } else if (data.startsWith("VOTRE_EQUIPE:")) {
             const idx = parseInt(data.split(":")[1]);
             myTeamIndex = idx;
@@ -323,7 +323,7 @@ function initWebSocket(code, pseudo) {
                 sessionStorage.removeItem('dookeyRoomCode');
                 sessionStorage.removeItem('dookeyPseudo');
                 sessionStorage.removeItem('dookeyGameState');
-            } catch(e) {}
+            } catch (e) { }
 
             // Afficher l'écran de victoire
             document.getElementById('victoire-screen').style.display = 'flex';
@@ -346,16 +346,16 @@ function initWebSocket(code, pseudo) {
 }
 
 function evaluerVerrouillageBase() {
-     document.getElementById("nom-equipe-tour").innerText = "En attente du jeu...";
-     document.getElementById("txt-info").innerText = "Regardez l'écran principal";
-     estVerrouille = true;
-     document.getElementById("ecran-cliquable").style.opacity = "0.4";
+    document.getElementById("nom-equipe-tour").innerText = "En attente du jeu...";
+    document.getElementById("txt-info").innerText = "Regardez l'écran principal";
+    estVerrouille = true;
+    document.getElementById("ecran-cliquable").style.opacity = "0.4";
 }
 
 function evaluerVerrouillage() {
     const txtTitre = document.getElementById("nom-equipe-tour");
     txtTitre.innerText = "Héros Actif : " + nomEquipeTour;
-    
+
     if (aVoteCeTour) {
         estVerrouille = true;
         document.getElementById("ecran-cliquable").style.opacity = "0.4";
@@ -389,10 +389,10 @@ function animer(currentTime) {
     lastTimeMain = currentTime;
 
     position += VITESSE_UNIFORME * direction * deltaTime;
-    
+
     if (position >= 100) { position = 100; direction = -1; }
     else if (position <= 0) { position = 0; direction = 1; }
-    
+
     curseur.style.left = position + "%";
 
     let index = Math.min(Math.floor(position / (100 / 6)), 5);
@@ -410,17 +410,17 @@ document.getElementById('ecran-cliquable').onclick = () => {
     if (!estArrete && socket.readyState === WebSocket.OPEN) {
         estArrete = true;
         estVerrouille = true;
-        
+
         let indexArret = Math.min(Math.floor(position / (100 / 6)), 5);
         let scoreObtenu = cases[indexArret].innerText;
-        
+
         socket.send("CLIC:" + scoreObtenu);
         aVoteCeTour = true;
-        
-        document.body.style.backgroundColor = "#4caf50"; 
+
+        document.body.style.backgroundColor = "#4caf50";
         evaluerVerrouillage();
-        
-        setTimeout(() => { 
+
+        setTimeout(() => {
             document.body.style.transition = "background-color 0.5s";
             document.body.style.backgroundColor = "#1a1a1a";
             setTimeout(() => document.body.style.transition = "none", 500);
@@ -432,7 +432,7 @@ function voterBoss(option) {
     if (bossAVote) return;
     const myPseudo = sessionStorage.getItem('dookeyPseudo');
     if (!myPseudo) return;
-    
+
     // Le serveur Godot vérifiera de toute façon si le pseudo a le droit
     bossAVote = true;
     document.getElementById('boss-card-' + option).classList.add('voted');
@@ -446,11 +446,11 @@ function voterMajestueux(option) {
     if (majestueuxAVote) return;
     const myPseudo = sessionStorage.getItem('dookeyPseudo');
     if (!myPseudo) return;
-    
+
     majestueuxAVote = true;
     const card = document.getElementById('maj-card-' + option);
     if (card) card.classList.add('voted');
-    
+
     socket.send(`MAJESTUEUX_VOTE:${option}:${myPseudo}`);
     document.getElementById('maj-vote-status').innerText = "Attente des résultats...";
 }
@@ -464,7 +464,7 @@ function lancerPortailQTE() {
     document.getElementById('portail-status').style.color = "white";
     document.getElementById('portail-flash').style.opacity = "0";
     document.getElementById('ecran-cliquable').style.display = 'none';
-    
+
     // Timer visuel
     let timeLeft = 8;
     const timerElem = document.getElementById('portail-timer');
@@ -495,7 +495,7 @@ function animerPortail(currentTime) {
     lastTimeQte = currentTime;
 
     qtePosition += VITESSE_UNIFORME * qteDirection * deltaTime;
-    
+
     if (qtePosition >= 100) { qtePosition = 100; qteDirection = -1; }
     else if (qtePosition <= 0) { qtePosition = 0; qteDirection = 1; }
 
@@ -505,24 +505,24 @@ function animerPortail(currentTime) {
 
 document.getElementById('portail-screen').onclick = () => {
     if (!qteActive || portailAClike) return;
-    
+
     portailAClike = true;
-    
+
     // Vérifier collision
     const cursor = document.getElementById('qte-cursor');
     const safeZone = document.getElementById('qte-safe-zone');
     const container = document.getElementById('qte-container');
-    
+
     const cursorRect = cursor.getBoundingClientRect();
     const safeRect = safeZone.getBoundingClientRect();
-    
+
     // On vérifie si le centre du curseur est dans la zone
     const cursorCenter = cursorRect.left + cursorRect.width / 2;
     const isSuccess = (cursorCenter >= safeRect.left && cursorCenter <= safeRect.right);
-    
+
     const flash = document.getElementById('portail-flash');
     const status = document.getElementById('portail-status');
-    
+
     if (isSuccess) {
         status.innerText = "VICTOIRE !";
         status.style.color = "#2ecc71";
@@ -534,7 +534,7 @@ document.getElementById('portail-screen').onclick = () => {
         flash.style.background = "rgba(231, 76, 60, 0.4)";
         socket.send("PORTAIL_QTE_VOTE:0");
     }
-    
+
     flash.style.opacity = "1";
     setTimeout(() => { flash.style.opacity = "0"; }, 300);
 };
