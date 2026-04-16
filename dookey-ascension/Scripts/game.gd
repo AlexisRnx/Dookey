@@ -44,6 +44,12 @@ const MAJ_AUDIO       := preload("res://Assets/Soundtrack/All Might vs Noumu (Br
 
 const PORTAIL_TILE    := Vector2i(2, 2)  # Case Combat Boss
 
+# Musique de fond
+const BG_AUDIO_1 = preload("res://Assets/Soundtrack/Super Mario Galaxy 2 Soundtrack - Yoshi Star Galaxy.mp3")
+const BG_AUDIO_2 = preload("res://Assets/Soundtrack/Throwback Galaxy - Super Mario Galaxy 2.mp3")
+var bg_audio_player : AudioStreamPlayer
+var current_bg_track : int = 1
+
 # variables / état
 var parcours       : Array[Vector2i]   = []
 var pions          : Array[Dictionary] = []   # { node, case, nom, camera }
@@ -136,6 +142,24 @@ func _ready() -> void:
 	WebSocketServer.verrouiller_salle()
 	_initialiser_compteurs_equipes()
 
+	# Musique de fond
+	bg_audio_player = AudioStreamPlayer.new()
+	bg_audio_player.volume_db = -22.0
+	bg_audio_player.finished.connect(_sur_bg_audio_fini)
+	add_child(bg_audio_player)
+	_jouer_musique_fond()
+
+func _jouer_musique_fond() -> void:
+	if current_bg_track == 1:
+		bg_audio_player.stream = BG_AUDIO_1
+		current_bg_track = 2
+	else:
+		bg_audio_player.stream = BG_AUDIO_2
+		current_bg_track = 1
+	bg_audio_player.play()
+
+func _sur_bg_audio_fini() -> void:
+	_jouer_musique_fond()
 
 func _construire_noms_equipes() -> void:
 	for i in range(4):
@@ -344,12 +368,15 @@ func _avancer_pion(nb: int) -> void:
 	# 2. Effet de la case d'atterrissage initial
 	var coords_initiales = parcours[data["case"]]
 	var atlas_initial = layer_cases.get_cell_atlas_coords(coords_initiales)
+	
+	var a_sauter_par_effet := false
 
 	if EFFETS_CASES.has(atlas_initial):
 		var effet = EFFETS_CASES[atlas_initial]
 		print("⚡ [%s] Case spéciale ! Effet : %+d" % [data["nom"], effet])
 		await get_tree().create_timer(0.4).timeout
 		await _deplacer_pion_relatif(data, effet, true)
+		a_sauter_par_effet = true
 
 	# 3. Position FINALE (après le saut d'effet éventuel) — c'est ici qu'on évalue tout
 	var atlas_final = layer_cases.get_cell_atlas_coords(parcours[data["case"]])
@@ -357,25 +384,28 @@ func _avancer_pion(nb: int) -> void:
 	if data["case"] >= parcours.size() - 1:
 		print("🏁 [%s] Arrivée ! Combat final contre DOOKEY BOSS." % data["nom"])
 		await _sequence_portail(data)
-	elif atlas_final == BOSS_TILE:
-		await get_tree().create_timer(0.8).timeout
-		print("💀 [%s] Case DOOKEY BOSS !" % data["nom"])
-		await _sequence_dookey_boss(data)
-	elif atlas_final == MAJESTUEUX_TILE:
-		await get_tree().create_timer(0.8).timeout
-		print("👑 [%s] Case DOOKEY MAJESTUEUX !" % data["nom"])
-		await _sequence_dookey_majestueux(data)
-	elif atlas_final == PORTAIL_TILE:
-		await get_tree().create_timer(0.8).timeout
-		print("👾 [%s] Case COMBAT DOOKEY BOSS !" % data["nom"])
-		await _sequence_portail(data)
+	elif not a_sauter_par_effet:
+		if atlas_final == BOSS_TILE:
+			await get_tree().create_timer(0.8).timeout
+			print("💀 [%s] Case DOOKEY BOSS !" % data["nom"])
+			await _sequence_dookey_boss(data)
+		elif atlas_final == MAJESTUEUX_TILE:
+			await get_tree().create_timer(0.8).timeout
+			print("👑 [%s] Case DOOKEY MAJESTUEUX !" % data["nom"])
+			await _sequence_dookey_majestueux(data)
+		elif atlas_final == PORTAIL_TILE:
+			await get_tree().create_timer(0.8).timeout
+			print("👾 [%s] Case COMBAT DOOKEY BOSS !" % data["nom"])
+			await _sequence_portail(data)
+		else:
+			await get_tree().create_timer(0.8).timeout
 	else:
 		await get_tree().create_timer(0.8).timeout
 
 	en_deplacement = false
 
 	# 4. Qui joue ensuite ? On relit atlas_final (inchangé depuis l'étape 3)
-	if atlas_final == Vector2i(0, 1):
+	if not a_sauter_par_effet and atlas_final == Vector2i(0, 1):
 		print("🔄 [%s] Case Verte — rejoue !" % data["nom"])
 	else:
 		tour_actuel = (tour_actuel + 1) % pions.size()
@@ -601,6 +631,9 @@ func _reprendre_tour() -> void:
 
 
 func _sequence_dookey_boss(data: Dictionary) -> void:
+	if is_instance_valid(bg_audio_player):
+		bg_audio_player.stream_paused = true
+
 	# Arreter le chrono du tour en cours pour eviter tout conflit
 	chrono_actif = false
 	temp_label_chrono.visible = false
@@ -726,8 +759,14 @@ func _sequence_dookey_boss(data: Dictionary) -> void:
 	if is_instance_valid(map_boss_fin):
 		map_boss_fin.visible = true
 
+	if is_instance_valid(bg_audio_player):
+		await get_tree().create_timer(1.0).timeout
+		bg_audio_player.stream_paused = false
 
 func _sequence_portail(data: Dictionary) -> bool:
+	if is_instance_valid(bg_audio_player):
+		bg_audio_player.stream_paused = true
+
 	# Arrêter les chronos
 	chrono_actif = false
 	temp_label_chrono.visible = false
@@ -778,12 +817,19 @@ func _sequence_portail(data: Dictionary) -> bool:
 		if not tour_actuel in equipes_bloquees_portail:
 			equipes_bloquees_portail.append(tour_actuel)
 	
+	if is_instance_valid(bg_audio_player) and not a_gagne:
+		await get_tree().create_timer(1.0).timeout
+		bg_audio_player.stream_paused = false
+	
 	return a_gagne
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SÉQUENCE DE VICTOIRE FINALE
 # ═══════════════════════════════════════════════════════════════════════════
 func _sequence_victoire(gagnant_nom: String) -> void:
+	if is_instance_valid(bg_audio_player):
+		bg_audio_player.stop()
+		
 	# 1. Notifier tout le monde
 	WebSocketServer.envoyer_message("GAME_WIN:" + gagnant_nom)
 	chrono_actif = false
@@ -884,6 +930,9 @@ func _afficher_banderole_portail(texte: String) -> void:
 
 
 func _sequence_dookey_majestueux(data: Dictionary) -> void:
+	if is_instance_valid(bg_audio_player):
+		bg_audio_player.stream_paused = true
+
 	chrono_actif = false
 	temp_label_chrono.visible = false
 	
@@ -900,7 +949,7 @@ func _sequence_dookey_majestueux(data: Dictionary) -> void:
 	
 	maj_audio_player = AudioStreamPlayer.new()
 	maj_audio_player.stream = MAJ_AUDIO
-	maj_audio_player.volume_db = -5.0
+	maj_audio_player.volume_db = -12.0
 	add_child(maj_audio_player)
 	maj_audio_player.play(124.0)
 	
@@ -1056,6 +1105,9 @@ func _sortie_majestueux() -> void:
 	if WebSocketServer.majestueux_vote_recu.is_connected(_sur_majestueux_vote):
 		WebSocketServer.majestueux_vote_recu.disconnect(_sur_majestueux_vote)
 
+	if is_instance_valid(bg_audio_player):
+		await get_tree().create_timer(1.0).timeout
+		bg_audio_player.stream_paused = false
 	
 	if is_instance_valid(boss_layer):
 		boss_layer.queue_free()
@@ -1603,7 +1655,8 @@ func _animer_debut_tour(equipe_idx: int) -> void:
 	var tw_out = create_tween()
 	tw_out.tween_property(strip, "color:a", 0.0, 0.4)
 	tw_out.parallel().tween_property(lbl_nom, "modulate:a", 0.0, 0.4)
-	tw_out.parallel().tween_property(lbl_pseudos, "modulate:a", 0.0, 0.4)
+	if is_instance_valid(lbl_pseudos):
+		tw_out.parallel().tween_property(lbl_pseudos, "modulate:a", 0.0, 0.4)
 	await tw_out.finished
 
 	anim_layer.queue_free()
