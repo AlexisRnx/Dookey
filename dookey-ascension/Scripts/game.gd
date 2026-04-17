@@ -292,6 +292,12 @@ func _verifier_lancement_auto_equipe() -> void:
 		temp_label_chrono.visible = false
 		_montrer_roue() # On la montre car elle était peut-être cachée
 		var noeud_roue: Node2D = roue_instance.get_node("Node2D")
+		
+		# Sécurité si les votes sont miraculeusement vides
+		if vote_en_cours.is_empty():
+			vote_en_cours = { randi_range(1, 6): 1 }
+			
+		noeud_roue.set_votes_depuis_web(vote_en_cours)
 		noeud_roue.lancer_roue_depuis_web()
 
 
